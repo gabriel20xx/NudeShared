@@ -22,4 +22,4 @@ class Logger {
     static success(moduleName, message, ...args) { console.log(...this._fmt('SUCCESS', moduleName, message, args)); }
 }
 
-module.exports = Logger;
+export default Logger;
