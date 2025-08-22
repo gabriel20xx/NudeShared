@@ -14,7 +14,7 @@ Previously both applications duplicated identical theme and logging code. Centra
 ## How apps consume it
 At container start, each app's `entrypoint.sh` script will:
 1. Read environment variables (see below).
-2. Clone or update this repository into a sibling directory (default: `../NudeShared`).
+2. Clone or update this repository into a sibling directory (default: `../NudeShared`). In containers, the standard path is `/app/NudeShared/src`.
 3. Copy `theme.css` into `src/public/css/theme.css` of the app.
 4. Copy `logger.js` into `src/utils/logger.js` (or rely on stub requiring the shared file).
 
@@ -25,14 +25,17 @@ At container start, each app's `entrypoint.sh` script will:
 |----------|---------|---------|
 | `NUDESHARED_REPO` | `https://github.com/gabriel20xx/NudeShared.git` | Git clone URL for this repo. |
 | `NUDESHARED_BRANCH` | `master` | Branch/tag to fetch. |
-| `NUDESHARED_DIR` | `../NudeShared` | Target clone directory relative to the app root. |
+| `NUDESHARED_DIR` | `../NudeShared` (local), `/app/NudeShared/src` (container) | Target clone directory where this repo will be available. |
 | `GITHUB_TOKEN` | (empty) | Optional token for private access (read-only).
 
 Add these to the consuming app's `.env` (never commit real tokens):
 ```env
 NUDESHARED_REPO=https://github.com/gabriel20xx/NudeShared.git
 NUDESHARED_BRANCH=master
+# Local dev:
 NUDESHARED_DIR=../NudeShared
+# Container:
+# NUDESHARED_DIR=/app/NudeShared/src
 GITHUB_TOKEN=
 ```
 
