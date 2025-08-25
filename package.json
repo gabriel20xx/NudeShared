@@ -1,10 +1,14 @@
 {
   "name": "@gabriel20xx/nude-shared",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Shared utilities and client assets for NudeFlow and NudeForge",
   "type": "module",
   "main": "./serverLogger.js",
   "module": "./serverLogger.js",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gabriel20xx/NudeShared.git"
+  },
   "exports": {
     ".": {
       "import": "./serverLogger.js"
