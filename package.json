@@ -1,0 +1,34 @@
+{
+  "name": "@gabriel20xx/nude-shared",
+  "version": "1.1.0",
+  "description": "Shared utilities and client assets for NudeFlow and NudeForge",
+  "type": "module",
+  "main": "./serverLogger.js",
+  "module": "./serverLogger.js",
+  "exports": {
+    ".": {
+      "import": "./serverLogger.js"
+    },
+    "./serverLogger.js": "./serverLogger.js",
+    "./logger.js": "./serverLogger.js",
+    "./clientLogger.js": "./clientLogger.js",
+    "./theme.css": "./theme.css"
+  },
+  "files": [
+    "serverLogger.js",
+    "clientLogger.js",
+    "theme.css",
+    "README.md"
+  ],
+  "keywords": [
+    "nude",
+    "shared",
+    "logger",
+    "utilities"
+  ],
+  "author": "",
+  "license": "ISC",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  }
+}

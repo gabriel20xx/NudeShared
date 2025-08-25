@@ -1,5 +1,5 @@
 /**
- * Shared Logger utility used by NudeFlow and NudeForge.
+ * Shared Server Logger utility used by NudeFlow and NudeForge.
  * Format: [YYYY-MM-DD HH:MM:SS] [LEVEL] [MODULE] message ...extra
  */
 class Logger {
