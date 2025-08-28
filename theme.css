@@ -291,7 +291,7 @@
 .bottom-nav a { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .25rem; font-size: var(--font-size-xs); color: var(--color-text-dim); text-decoration: none; position: relative; height: 100%; padding: .2rem .4rem; letter-spacing: .3px; transition: color .25s; }
 .bottom-nav a i { font-size: 1.05rem; }
 .bottom-nav a.active, .bottom-nav a:hover { color: var(--color-accent); }
-.bottom-nav a.active::after { content: ""; position: absolute; bottom: .15rem; left: 50%; transform: translateX(-50%); width: 18px; height: 3px; background: var(--gradient-accent); border-radius: 2px; }
+/* Active underline removed as requested */
 
 /* Light/dark explicit surfaces for header and bottom nav */
 :root[data-theme='light'] .app-topbar,
