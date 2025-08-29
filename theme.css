@@ -317,6 +317,17 @@
 @keyframes toast-progress { from { transform: scaleX(1);} to { transform: scaleX(0);} }
 @media (max-width:600px){ .toast-root { top: auto; bottom: calc(var(--bottom-nav-height) + .75rem); right: .75rem; left: .75rem; width: auto; } }
 
+/* Global processing progress bar overlay (non-interfering) */
+#globalProcessingProgressBarWrapper {
+    position: fixed;
+    left: 50%;
+    transform: translateX(-50%);
+    top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px) + .5rem);
+    width: min(900px, calc(100vw - 1.25rem));
+    z-index: 70; /* Above header and content, below toasts (120) */
+    pointer-events: none; /* Don’t block clicks to underlying UI */
+}
+
 /* Shared form controls */
 .ui-select { appearance: none; -webkit-appearance: none; background: var(--color-surface); color: var(--color-text); border: 1px solid var(--color-border); padding: .45rem .8rem; border-radius: var(--radius-pill); font-size: var(--font-size-sm); line-height: 1.2; box-shadow: var(--shadow-sm); cursor: pointer; transition: background .25s, border .25s, box-shadow .25s; }
 .ui-select:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 2px #ffb84d33; }
@@ -367,7 +378,7 @@
 }
 
 /* Shared card grid for Saved/Search/Library */
-.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap-lg); padding: 1rem 0; }
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap-lg); padding: 1rem; }
 .video-item { display:flex; flex-direction:column; gap:.5rem; padding:.6rem; border:1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); text-align:center; box-shadow: var(--shadow-sm); }
 .video-thumbnail { border-radius: var(--radius-sm); overflow:hidden; }
 .video-thumbnail img { width:100%; height:140px; object-fit: cover; display:block; transition: transform .2s ease; }
