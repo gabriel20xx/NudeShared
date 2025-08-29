@@ -380,6 +380,10 @@
 /* Variant: ensure full media is visible (no cropping) inside preview */
 .media-contain img, .media-contain video { height:160px; object-fit: contain; background:#000; }
 @media (max-width: 480px){ .video-thumbnail img, .media-contain img, .media-contain video { height: 140px; } }
+/* Mobile grid: force 2 columns for Saved/Library */
+@media (max-width: 600px){
+    .results-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
 
 /* Shared inline media overlay (used by Saved/Library) */
 .media-overlay { --overlay-gap: .75rem; position: fixed; inset: 0; z-index: 160; background: rgba(0,0,0,0.86); display: none; align-items: center; justify-content: center; padding: calc(var(--topbar-height) + var(--overlay-gap)) var(--overlay-gap) calc(var(--bottom-nav-height) + var(--overlay-gap)); }
