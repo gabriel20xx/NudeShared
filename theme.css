@@ -364,3 +364,75 @@
     --shadow-lg: 0 8px 28px -4px rgba(0, 0, 0, .55);
     --shadow-accent-glow: 0 4px 16px 0 rgba(255, 184, 77, .35)
 }
+
+/* Shared card grid for Saved/Search/Library */
+.results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap-lg); padding: 1rem 0; }
+.video-item { display:flex; flex-direction:column; gap:.5rem; padding:.6rem; border:1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); text-align:center; box-shadow: var(--shadow-sm); }
+.video-thumbnail { border-radius: var(--radius-sm); overflow:hidden; }
+.video-thumbnail img { width:100%; height:140px; object-fit: cover; display:block; transition: transform .2s ease; }
+.video-thumbnail:hover img { transform: scale(1.03); }
+.video-item p { margin:.35rem 0 .15rem; font-weight:600; font-size: var(--font-size-sm); color: var(--color-text); }
+.video-item small { color: var(--color-text-dim); font-size: var(--font-size-xs); }
+.video-item button { margin-top:6px; padding:.4rem .65rem; background: var(--gradient-info); color:#fff; border:none; border-radius: var(--radius-sm); cursor:pointer; font-size: var(--font-size-xs); box-shadow: var(--shadow-sm); }
+.video-item button:hover { background: var(--gradient-info-rev); }
+.video-item button + button { background: var(--color-danger-strong); }
+.video-item button + button:hover { background: var(--color-danger-hover); }
+/* Variant: ensure full media is visible (no cropping) inside preview */
+.media-contain img, .media-contain video { height:160px; object-fit: contain; background:#000; }
+@media (max-width: 480px){ .video-thumbnail img, .media-contain img, .media-contain video { height: 140px; } }
+
+/* Shared inline media overlay (used by Saved/Library) */
+.media-overlay { --overlay-gap: .75rem; position: fixed; inset: 0; z-index: 160; background: rgba(0,0,0,0.86); display: none; align-items: center; justify-content: center; padding: calc(var(--topbar-height) + var(--overlay-gap)) var(--overlay-gap) calc(var(--bottom-nav-height) + var(--overlay-gap)); }
+.media-overlay.open { display: flex; }
+.media-overlay .media-frame { position: relative; width: min(96vw, 1100px); height: min(74vh, calc(100vh - var(--topbar-height) - var(--bottom-nav-height) - 2rem)); display:flex; align-items:center; justify-content:center; }
+.media-overlay .media-frame img, .media-overlay .media-frame video { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: var(--radius-md); box-shadow: var(--shadow-2xl, 0 10px 40px rgba(0,0,0,.6)); background: #000; }
+.media-overlay .close-btn { position: absolute; top: var(--overlay-gap); right: var(--overlay-gap); width: 42px; height: 42px; border-radius: 999px; border: 1px solid var(--color-border); background: rgba(30,32,38,0.85); color: var(--color-text); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow: var(--shadow-md); }
+:root[data-theme='light'] .media-overlay .close-btn { background: rgba(255,255,255,0.92); }
+.media-overlay .nav-btn { position:absolute; top:50%; transform: translateY(-50%); width:48px; height:48px; border-radius:999px; border:1px solid var(--color-border); background: rgba(30,32,38,0.8); color: var(--color-text); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow: var(--shadow-md); font-size: 1.2rem; }
+.media-overlay .prev-btn { left: .75rem; }
+.media-overlay .next-btn { right: .75rem; }
+.media-overlay .nav-btn:disabled { opacity: .45; cursor: default; }
+/* On mobile, place navigation buttons below the media instead of overlaying it */
+@media (max-width: 600px) {
+    .media-overlay.open {
+        display: grid;
+        grid-template-columns: auto auto;
+        grid-template-rows: 1fr auto;
+        justify-content: center;
+        justify-items: center;
+        align-content: stretch;
+        align-items: center;
+        column-gap: var(--overlay-gap);
+        row-gap: var(--overlay-gap);
+        padding-bottom: calc(var(--bottom-nav-height) + var(--overlay-gap) + env(safe-area-inset-bottom, 0px));
+        padding-left: calc(var(--overlay-gap) + env(safe-area-inset-left, 0px));
+        padding-right: calc(var(--overlay-gap) + env(safe-area-inset-right, 0px));
+    }
+    .media-overlay .media-frame { grid-column: 1 / -1; grid-row: 1; }
+    .media-overlay .nav-btn { position: static; transform: none; margin-top: 0; width: 44px; height: 44px; }
+    .media-overlay .prev-btn { grid-column: 1; grid-row: 2; justify-self: end; }
+    .media-overlay .next-btn { grid-column: 2; grid-row: 2; justify-self: start; }
+}
+
+/* Utility to disable background scroll when overlays are open */
+html.no-scroll, body.no-scroll { overflow: hidden !important; }
+
+/* Floating media controls (shared) */
+.floating-controls { position: absolute; right: .85rem; bottom: .85rem; z-index: 130; display: flex; flex-direction: column; gap: .6rem; opacity: 0; transform: translateY(8px); transition: opacity .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1); }
+.floating-controls.visible { opacity: 1; transform: translateY(0); }
+.floating-controls.hidden { opacity: 0; transform: translateY(8px); }
+.float-btn { width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--color-border); background: rgba(30,32,38,0.82); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); color: var(--color-text); box-shadow: var(--shadow-md); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
+:root[data-theme='light'] .float-btn { background: rgba(255,255,255,0.86); }
+.float-btn:hover { filter: brightness(1.08); }
+.float-btn i { font-size: 1rem; }
+.float-btn--save[aria-pressed="true"] i { color: var(--color-accent, #ff9800); }
+@media (max-width: 420px) {
+    .floating-controls { 
+        right: calc(env(safe-area-inset-right, 0px) + .65rem); 
+        bottom: calc(env(safe-area-inset-bottom, 0px) + .65rem); 
+    }
+}
+.float-panel { position: absolute; right: 56px; bottom: 0; min-width: 180px; padding: .7rem .75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: rgba(30,32,38,0.9); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); color: var(--color-text); box-shadow: var(--shadow-lg); }
+:root[data-theme='light'] .float-panel { background: rgba(255,255,255,0.92); }
+.float-panel .float-panel-row { font-size: .85rem; margin-bottom: .4rem; }
+.float-panel .ap-range { width: 100%; }
