@@ -377,13 +377,13 @@
     --shadow-accent-glow: 0 4px 16px 0 rgba(255, 184, 77, .35)
 }
 
-/* Shared card grid for Saved/Search/Library */
+/* Shared card grid for Saved/Search/Library/Categories */
 .results-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: var(--gap-lg); padding: 1rem; }
 .video-item { display:flex; flex-direction:column; gap:.5rem; padding:.6rem; border:1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-surface); text-align:center; box-shadow: var(--shadow-sm); }
-.video-thumbnail { border-radius: var(--radius-sm); overflow:hidden; }
-.video-thumbnail img { width:100%; height:140px; object-fit: cover; display:block; transition: transform .2s ease; }
-.video-thumbnail:hover img { transform: scale(1.03); }
-.video-item p { margin:.35rem 0 .15rem; font-weight:600; font-size: var(--font-size-sm); color: var(--color-text); }
+.video-thumbnail { border-radius: var(--radius-sm); overflow:hidden; height: 160px; display:flex; align-items:center; justify-content:center; background:#000; }
+.video-thumbnail img, .video-thumbnail video { width:100%; height:100%; object-fit: cover; display:block; transition: transform .2s ease; background:#000; }
+.video-thumbnail:hover img, .video-thumbnail:hover video { transform: scale(1.03); }
+.video-item p, .category-title { margin:.35rem 0 .15rem; font-weight:600; font-size: var(--font-size-sm); color: var(--color-text); padding: 0 .3rem; }
 .video-item small { color: var(--color-text-dim); font-size: var(--font-size-xs); }
 .video-item button { margin-top:6px; padding:.4rem .65rem; background: var(--gradient-info); color:#fff; border:none; border-radius: var(--radius-sm); cursor:pointer; font-size: var(--font-size-xs); box-shadow: var(--shadow-sm); }
 .video-item button:hover { background: var(--gradient-info-rev); }
@@ -399,8 +399,8 @@
     color: #fff;
 }
 /* Variant: ensure full media is visible (no cropping) inside preview */
-.media-contain img, .media-contain video { height:160px; object-fit: contain; background:#000; }
-@media (max-width: 480px){ .video-thumbnail img, .media-contain img, .media-contain video { height: 140px; } }
+.media-contain img, .media-contain video { height:100%; object-fit: contain; background:#000; }
+@media (max-width: 480px){ .video-thumbnail { height: 140px; } }
 /* Mobile grid: force 2 columns for Saved/Library */
 @media (max-width: 600px){
     .results-grid { grid-template-columns: repeat(2, 1fr) !important; }
