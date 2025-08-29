@@ -389,6 +389,15 @@
 .video-item button:hover { background: var(--gradient-info-rev); }
 .video-item button + button { background: var(--color-danger-strong); }
 .video-item button + button:hover { background: var(--color-danger-hover); }
+/* Override: force green download button inside cards */
+.video-item .btn-download, button.btn-download {
+    background: var(--gradient-download);
+    color: #23272f;
+}
+.video-item .btn-download:hover, button.btn-download:hover {
+    background: var(--gradient-download-rev);
+    color: #fff;
+}
 /* Variant: ensure full media is visible (no cropping) inside preview */
 .media-contain img, .media-contain video { height:160px; object-fit: contain; background:#000; }
 @media (max-width: 480px){ .video-thumbnail img, .media-contain img, .media-contain video { height: 140px; } }
