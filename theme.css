@@ -483,3 +483,16 @@ html.no-scroll, body.no-scroll { overflow: hidden !important; }
 .field-input:focus, .profile-edit textarea:focus { outline:none; border-color:var(--color-accent); box-shadow:0 0 0 2px #ffb84d33; }
 .edit-actions { display:flex; gap:.6rem; flex-wrap:wrap; margin-top:.4rem; }
 @media (max-width:640px){ .profile-card { padding:1.1rem 1.1rem 1.35rem; } .profile-header { gap:1rem; } .avatar-wrapper { width:78px; height:78px; } .profile-title { font-size:1.2rem; } }
+
+/* Status pages (404, error, etc.) */
+.status-page { padding-top: var(--topbar-height); padding-bottom: var(--bottom-nav-height); display:flex; flex-direction:column; align-items:center; gap:1.2rem; max-width:640px; margin:0 auto; text-align:center; }
+.status-title { font-weight:650; line-height:1; margin:0; }
+.status-title--xl { font-size:2.2rem; }
+.status-title--lg { font-size:2rem; }
+.status-title--gradient { background: var(--gradient-accent); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.status-title--error { color: var(--color-danger); }
+.status-text { font-size:1rem; color: var(--color-text-dim); line-height:1.4; margin: 0; }
+
+/* Utilities */
+.link-no-underline { text-decoration: none !important; }
+.link-no-underline:hover, .link-no-underline:focus { text-decoration: none !important; }
