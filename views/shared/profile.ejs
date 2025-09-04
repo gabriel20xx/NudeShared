@@ -1,0 +1,75 @@
+<main id="profile-container" class="profile-page" aria-label="User profile" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);">
+  <section class="profile-card">
+    <div class="profile-header">
+      <div class="avatar-wrapper">
+        <img id="profilePicture" class="profile-avatar" src="/images/default-avatar.png" alt="User avatar" />
+      </div>
+      <div class="identity">
+        <h1 class="profile-title">Profile</h1>
+        <p class="profile-username" id="username">Loading...</p>
+        <p class="profile-email" id="email">Loading...</p>
+      </div>
+      <div class="profile-actions">
+        <button id="editProfileButton" type="button" class="btn btn-info" style="margin:0;">Edit</button>
+      </div>
+    </div>
+    <div class="profile-body">
+      <div class="bio-block">
+        <h2 class="section-label">Bio</h2>
+        <p id="bio" class="bio-text">Loading...</p>
+      </div>
+      <form id="editProfileForm" class="profile-edit" style="display:none;" novalidate>
+        <h2 class="section-label" style="margin-top:0;">Edit Profile</h2>
+        <label for="usernameInput" class="field-label">Username</label>
+        <input type="text" id="usernameInput" class="field-input" autocomplete="username" />
+        <label for="emailInput" class="field-label">Email</label>
+        <input type="email" id="emailInput" class="field-input" autocomplete="email" />
+        <label for="bioInput" class="field-label">Bio</label>
+        <textarea id="bioInput" class="field-input" rows="3"></textarea>
+        <div class="edit-actions">
+          <button type="button" class="btn btn-success-solid" onclick="saveProfileChanges()">Save</button>
+          <button type="button" class="btn btn-danger-solid" onclick="cancelEdit()">Cancel</button>
+        </div>
+      </form>
+    </div>
+  </section>
+</main>
+<script>
+async function fetchUserProfile(){
+  try {
+    const res = await fetch('/api/profile');
+    const data = await res.json();
+    if ((data.success || data.ok) && (data.data || data.profile || data.user)) {
+      const u = data.data || data.profile || data.user;
+      const $ = (id)=>document.getElementById(id);
+      $('username').textContent = u.username || 'Anonymous';
+      $('email').textContent = u.email || 'Not set';
+      $('bio').textContent = u.bio || 'No bio yet.';
+      const pic = u.profilePicture || '/images/default-avatar.png';
+      const imgEl = $('profilePicture');
+      if (imgEl) imgEl.src = pic;
+    } else {
+      toast?.error?.('Failed to load profile');
+    }
+  } catch(e){ console.error(e); toast?.error?.('Profile load error'); }
+}
+function editProfile(){
+  const show = (el, v)=>{ if (el) el.style.display=v; };
+  show(document.getElementById('editProfileForm'), 'block');
+  const text = (id)=>document.getElementById(id)?.textContent || '';
+  document.getElementById('usernameInput').value = text('username');
+  document.getElementById('emailInput').value = text('email');
+  document.getElementById('bioInput').value = text('bio');
+}
+function cancelEdit(){ const f=document.getElementById('editProfileForm'); if(f) f.style.display='none'; }
+async function saveProfileChanges(){
+  const payload={ username:usernameInput.value, email:emailInput.value, bio:bioInput.value };
+  try {
+    const r= await fetch('/api/profile',{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+    const ok = r.ok;
+    if(ok){ toast?.success?.('Profile updated'); fetchUserProfile(); cancelEdit(); }
+    else { toast?.error?.('Save failed'); }
+  } catch(e){ toast?.error?.('Network error'); }
+}
+document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('editProfileButton')?.addEventListener('click', editProfile); fetchUserProfile(); });
+</script>
