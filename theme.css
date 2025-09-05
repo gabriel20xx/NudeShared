@@ -496,3 +496,23 @@ html.no-scroll, body.no-scroll { overflow: hidden !important; }
 /* Utilities */
 .link-no-underline { text-decoration: none !important; }
 .link-no-underline:hover, .link-no-underline:focus { text-decoration: none !important; }
+
+/* Auth overlay visuals (shared) */
+.auth-btn { background: var(--gradient-accent); color:#23272f; border:none; border-radius: var(--radius-pill); padding:.45rem .75rem; font-size:.8rem; font-weight:600; cursor:pointer; box-shadow: var(--shadow-sm); }
+.auth-btn:hover { background: var(--gradient-accent-rev); color:#fff; }
+.auth-overlay { position: fixed; inset: 0; z-index: 200; display: grid; place-items: center; background: rgba(0,0,0,0.72); padding: 1rem; }
+.auth-modal { width: min(520px, 92vw); background: var(--color-panel-bg); border:1px solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-lg); position: relative; overflow: hidden; }
+.auth-close { position:absolute; top:.6rem; right:.6rem; width:36px; height:36px; border-radius:999px; border:1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); display:flex; align-items:center; justify-content:center; cursor:pointer; box-shadow: var(--shadow-sm); }
+:root[data-theme='light'] .auth-close { background: #fff; }
+.auth-header { padding: 1rem 1.2rem 0.3rem; display:flex; flex-direction:column; gap:.6rem; }
+.auth-title { margin:0; font-size:1.2rem; font-weight:650; }
+.auth-tabs { display:flex; gap:.35rem; }
+.auth-tab { background: transparent; border:1px solid var(--color-border); color: var(--color-text); padding:.35rem .7rem; border-radius: var(--radius-pill); font-size:.8rem; cursor:pointer; }
+.auth-tab.active { background: var(--color-surface); box-shadow: var(--shadow-sm); }
+.auth-body { padding: .75rem 1.2rem 1rem; }
+.auth-form { display:flex; flex-direction:column; gap:.65rem; }
+.auth-field { display:flex; flex-direction:column; gap:.35rem; }
+.auth-input { background: var(--color-input-bg); color: var(--color-text); border:1px solid var(--color-input-border); border-radius: var(--radius-sm); padding:.55rem .65rem; font-size:.9rem; }
+.auth-input:focus { outline:none; border-color: var(--color-accent); box-shadow: 0 0 0 2px #ffb84d33; }
+.auth-actions { display:flex; gap:.5rem; justify-content:flex-end; margin-top:.4rem; }
+.auth-note { text-align:center; font-size:.75rem; margin: 0 0 1rem; }

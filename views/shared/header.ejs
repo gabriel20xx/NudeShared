@@ -12,6 +12,7 @@
   <script src="/socket.io/socket.io.js"></script>
   <script defer src="/shared/theme-toggle.js"></script>
   <script defer src="/shared/toast.js"></script>
+  <script defer src="/shared/auth-modal.js"></script>
 </head>
 <body>
   <div class="body-container">
@@ -27,5 +28,52 @@
         <div class="theme-toggle">
           <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark / light theme">🌙</button>
         </div>
+        <button type="button" id="authOpenBtn" class="auth-btn" aria-haspopup="dialog" aria-controls="authOverlay" title="Log in or Sign up">Log in / Sign up</button>
       </div>
     </header>
+    <!-- Shared Auth Overlay -->
+    <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
+      <div class="auth-modal" role="document">
+        <button class="auth-close" type="button" aria-label="Close">✕</button>
+        <div class="auth-header">
+          <h2 id="authTitle" class="auth-title">Welcome</h2>
+          <div class="auth-tabs" role="tablist" aria-label="Authentication">
+            <button class="auth-tab active" role="tab" aria-selected="true" aria-controls="authLoginPanel" id="authLoginTab">Log in</button>
+            <button class="auth-tab" role="tab" aria-selected="false" aria-controls="authSignupPanel" id="authSignupTab">Sign up</button>
+          </div>
+        </div>
+        <div class="auth-body">
+          <form id="authLoginPanel" class="auth-form" role="tabpanel" aria-labelledby="authLoginTab">
+            <div class="auth-field">
+              <label for="loginEmail">Email</label>
+              <input id="loginEmail" type="email" class="auth-input" placeholder="you@example.com" autocomplete="username">
+            </div>
+            <div class="auth-field">
+              <label for="loginPassword">Password</label>
+              <input id="loginPassword" type="password" class="auth-input" placeholder="••••••••" autocomplete="current-password">
+            </div>
+            <div class="auth-actions">
+              <button type="button" class="btn-success-solid auth-submit" data-mode="login">Log in</button>
+            </div>
+          </form>
+          <form id="authSignupPanel" class="auth-form" role="tabpanel" aria-labelledby="authSignupTab" hidden>
+            <div class="auth-field">
+              <label for="signupEmail">Email</label>
+              <input id="signupEmail" type="email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+            </div>
+            <div class="auth-field">
+              <label for="signupPassword">Password</label>
+              <input id="signupPassword" type="password" class="auth-input" placeholder="Create a password" autocomplete="new-password">
+            </div>
+            <div class="auth-field">
+              <label for="signupConfirm">Confirm password</label>
+              <input id="signupConfirm" type="password" class="auth-input" placeholder="Repeat password" autocomplete="new-password">
+            </div>
+            <div class="auth-actions">
+              <button type="button" class="btn-info auth-submit" data-mode="signup">Create account</button>
+            </div>
+          </form>
+        </div>
+        <p class="auth-note text-dim">Visuals only · No data is submitted</p>
+      </div>
+    </div>
