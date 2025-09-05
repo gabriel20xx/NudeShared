@@ -71,9 +71,17 @@ export async function initDb() {
   // From this file at NudeShared/server/db, go up 3 to reach the repo root
   const repoRoot = path.resolve(__dirname, '..', '..', '..');
   const defaultPath = path.join(repoRoot, 'database', 'dbfile.db');
-  const sqlitePath = process.env.SQLITE_PATH || defaultPath;
+    const sqlitePath = process.env.SQLITE_PATH || defaultPath;
     const dir = path.dirname(sqlitePath);
     try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+    // Proactively create the file when using a regular filesystem path
+    try {
+      if (sqlitePath !== ':memory:' && !/^file:/i.test(sqlitePath)) {
+        if (!fs.existsSync(sqlitePath)) {
+          fs.closeSync(fs.openSync(sqlitePath, 'a'));
+        }
+      }
+    } catch {}
     sqliteDb = new BetterSqlite3(sqlitePath);
     sqliteDb.pragma('journal_mode = WAL');
     driver = 'sqlite';
