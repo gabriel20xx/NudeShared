@@ -1,0 +1,21 @@
+<%- include('../shared/header', { title: 'Set new password' }) %>
+<main class="page">
+  <h1>Set new password</h1>
+  <form id="resetForm" class="auth-form">
+    <input type="hidden" id="token" value="<%= token || '' %>">
+    <label>New password <input id="newPassword" type="password" class="auth-input" required></label>
+    <button type="submit" class="btn-success-solid">Update password</button>
+  </form>
+  <div id="resetDone"></div>
+</main>
+<script>
+document.getElementById('resetForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const token = document.getElementById('token').value;
+  const password = document.getElementById('newPassword').value;
+  const r = await fetch('/auth/reset/perform', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({token, password})});
+  const j = await r.json();
+  document.getElementById('resetDone').textContent = j.message || JSON.stringify(j);
+});
+</script>
+<%- include('../shared/footer') %>

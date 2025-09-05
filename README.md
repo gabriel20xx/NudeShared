@@ -1,24 +1,34 @@
 # NudeShared
 
-Central shared assets for the NudeFlow + NudeForge ecosystem:
+Central shared assets and server modules for NudeFlow + NudeForge.
 
-- `logger.js` – Unified server-side logging utility.
-- `theme.css` – Single source of truth for UI design tokens and utility classes.
+## Structure
+
+- `server/`
+	- `index.js` – Aggregated server exports for clean imports.
+	- `logger/serverLogger.js` – Unified server-side logger.
+	- `db/db.js` – DB abstraction (PostgreSQL preferred; SQLite fallback).
+	- `db/migrate.js` – Minimal migrations (creates users table).
+	- `auth/authRoutes.js` – Express auth router (signup/login/logout/me, admin list, password reset demo).
+- Client assets (served at `/shared` by apps)
+	- `theme.css` – Design tokens/utilities.
+	- `toast.js`, `auth-modal.js`, `theme-toggle.js`, `clientLogger.js`.
+- `views/` – Shared EJS views (partials, admin/users, auth reset pages).
+- `config/sharedConfig.js` – Cross-app config helper.
+
+Recommended imports in apps:
+
+- Server side: `import { Logger, initDb, runMigrations, buildAuthRouter } from '../../NudeShared/server/index.js'`
+- Client assets: mount `/shared` static pointing to `NudeShared` root.
 
 ## Why this repo
-Previously both applications duplicated identical theme and logging code. Centralizing:
+Previously both applications duplicated theme, logging, and auth/db glue. Centralizing:
 - Eliminates drift (one place to update colors, spacing, tokens).
 - Provides consistent log formatting across services.
 - Simplifies future extraction into an npm package if desired.
 
 ## How apps consume it
-At container start, each app's `entrypoint.sh` script will:
-1. Read environment variables (see below).
-2. Clone or update this repository into a sibling directory (default: `../NudeShared`). In containers, the standard path is `/app/NudeShared/src`.
-3. Copy `theme.css` into `src/public/css/theme.css` of the app.
-4. Copy `logger.js` into `src/utils/logger.js` (or rely on stub requiring the shared file).
-
-`AppUtils` (NudeFlow) and service modules (NudeForge) import the logger via their local `src/utils/logger.js` stub, which defers to this shared implementation.
+Apps import server modules directly from `NudeShared/server/index.js`. For client assets, both apps expose `/shared` static from the NudeShared root so scripts/styles can be referenced in EJS.
 
 ## Environment variables (used by each app's entrypoint)
 | Variable | Default | Purpose |
@@ -35,7 +45,7 @@ NUDESHARED_BRANCH=master
 # Local dev:
 NUDESHARED_DIR=../NudeShared
 # Container:
-# NUDESHARED_DIR=/app/NudeShared/src
+# NUDESHARED_DIR=/app/NudeShared
 GITHUB_TOKEN=
 ```
 
@@ -58,15 +68,16 @@ ln -s ../NudeShared/theme.css NudeForge/src/public/css/theme.css
 
 When using symlinks, you can comment out the copy step in `entrypoint.sh` or adapt a dev-only script.
 
-## Updating the theme
-Edit `theme.css` here, commit, redeploy apps. Because apps copy the file at startup, any restart or new container build picks up the change automatically.
+## Updating assets & server modules
+- Edit `theme.css` or client JS and reload apps; they serve directly from `/shared` when mounted to the `NudeShared` directory.
+- Server-side changes (logger, db, auth) are imported at runtime by the apps; restart the server process to pick up changes.
 
-## Updating the logger
-Keep the API surface minimal: `debug, info, warn, error, success`. If you need structured logging or transports (e.g. JSON, file, external service), extend this module and ensure backward compatibility.
+## Logger API
+Keep the API minimal: `debug, info, warn, error, success`. Extend with transports/JSON as needed while preserving backwards compatibility.
 
 Example usage inside an app service:
 ```js
-const Logger = require('./utils/logger');
+import { Logger } from '../../NudeShared/server/index.js';
 Logger.info('MEDIA', 'Scanning started', { batch: 1 });
 Logger.error('MEDIA', 'Failure scanning directory', err);
 ```
@@ -81,10 +92,10 @@ If you want to guarantee stability in production:
 - Token must have minimal scopes (read-only for this repo).
 
 ## Future enhancements
-- Publish as npm package (`@nudex/shared` or similar).
+- Publish as npm package (scoped) and version properly.
 - Add TypeScript types for the logger.
 - Provide additional shared utilities (validation, response formatting, constants).
-- Add automated tests for the logger formatting.
+- Add automated tests for db/auth flows.
 
 ## License
 (Insert license info here if required.)

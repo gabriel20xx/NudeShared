@@ -3,23 +3,24 @@
   "version": "1.1.2",
   "description": "Shared utilities and client assets for NudeFlow and NudeForge",
   "type": "module",
-  "main": "./serverLogger.js",
-  "module": "./serverLogger.js",
+  "main": "./server/logger/serverLogger.js",
+  "module": "./server/logger/serverLogger.js",
+  "scripts": {
+    "test": "node --experimental-vm-modules test/run-all-tests.mjs"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/gabriel20xx/NudeShared.git"
   },
   "exports": {
-    ".": {
-      "import": "./serverLogger.js"
-    },
-    "./serverLogger.js": "./serverLogger.js",
-    "./logger.js": "./serverLogger.js",
+    ".": { "import": "./server/logger/serverLogger.js" },
+    "./server/index.js": "./server/index.js",
+    "./server/logger/serverLogger.js": "./server/logger/serverLogger.js",
     "./clientLogger.js": "./clientLogger.js",
     "./theme.css": "./theme.css"
   },
   "files": [
-    "serverLogger.js",
+    "server/**",
     "clientLogger.js",
     "theme.css",
     "README.md"
@@ -34,5 +35,13 @@
   "license": "ISC",
   "publishConfig": {
     "registry": "https://npm.pkg.github.com"
+  },
+  "dependencies": {
+    "better-sqlite3": "^9.6.0"
+  },
+  "devDependencies": {
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "node-fetch": "^3.3.2"
   }
 }

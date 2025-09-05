@@ -1,0 +1,21 @@
+<%- include('../shared/header', { title: 'Users' }) %>
+<main class="page">
+  <h1>Users</h1>
+  <div id="usersList" class="card"></div>
+</main>
+<script>
+(async()=>{
+  try{
+    const r = await fetch('/admin/users');
+    const j = await r.json();
+    const el = document.getElementById('usersList');
+    el.textContent = '';
+    (j.users||[]).forEach(u=>{
+      const d=document.createElement('div'); d.className='row';
+      d.textContent = `${u.id} · ${u.email} · ${u.created_at}`;
+      el.appendChild(d);
+    });
+  }catch(e){ console.error(e); }
+})();
+</script>
+<%- include('../shared/footer') %>

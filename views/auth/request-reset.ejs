@@ -1,0 +1,20 @@
+<%- include('../shared/header', { title: 'Password reset' }) %>
+<main class="page">
+  <h1>Request password reset</h1>
+  <form id="resetReqForm" class="auth-form">
+    <label>Email <input id="resetEmail" type="email" class="auth-input" required></label>
+    <button type="submit" class="btn-info">Send reset link</button>
+  </form>
+  <p class="text-dim">In dev, we’ll display the reset link directly.</p>
+  <div id="resetResult"></div>
+</main>
+<script>
+document.getElementById('resetReqForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const email = document.getElementById('resetEmail').value;
+  const r = await fetch('/auth/reset/request', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email})});
+  const j = await r.json();
+  document.getElementById('resetResult').textContent = j.message || JSON.stringify(j);
+});
+</script>
+<%- include('../shared/footer') %>
