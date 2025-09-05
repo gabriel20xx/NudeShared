@@ -2,7 +2,7 @@
   <section class="profile-card">
     <div class="profile-header">
       <div class="avatar-wrapper">
-        <img id="profilePicture" class="profile-avatar" src="/images/default-avatar.png" alt="User avatar" />
+        <img id="profilePicture" class="profile-avatar" src="/images/default-avatar.png" alt="User avatar" onerror="this.onerror=null; this.src='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNgYAAAAAMAASsJTYQAAAAASUVORK5CYII=';" />
       </div>
       <div class="identity">
         <h1 class="profile-title">Profile</h1>
@@ -32,8 +32,51 @@
         </div>
       </form>
       <div class="profile-edit">
-        <h2 class="section-label" style="margin-top:0;">Settings</h2>
-        <div class="field-label">Appearance</div>
+        <h2 class="section-label" style="margin-top:0;">Security</h2>
+        <div class="field-label">Username</div>
+        <input type="text" id="secUsername" class="field-input" placeholder="Your username" autocomplete="username">
+        <div class="field-label">Email</div>
+        <input type="email" id="secEmail" class="field-input" placeholder="you@example.com" autocomplete="email">
+        <div class="edit-actions">
+          <button type="button" class="btn btn-success-solid" id="btnSaveIdentity">Save</button>
+        </div>
+        <hr style="opacity:.2; border:none; border-top:1px solid var(--color-border); margin:.75rem 0;">
+        <div class="field-label">Change Password</div>
+        <input type="password" id="currPw" class="field-input" placeholder="Current password" autocomplete="current-password">
+        <input type="password" id="newPw" class="field-input" placeholder="New password (min 6)" autocomplete="new-password">
+        <div class="edit-actions">
+          <button type="button" class="btn btn-info" id="btnChangePw">Update Password</button>
+        </div>
+        <hr style="opacity:.2; border:none; border-top:1px solid var(--color-border); margin:.75rem 0;">
+        <div class="field-label">Two‑Factor Authentication (TOTP)</div>
+        <div id="mfaSection">
+          <p class="text-dim" id="mfaStatus">Loading MFA status…</p>
+          <div id="mfaSetup" style="display:none;">
+            <button type="button" class="btn btn-info" id="btnStartTotp">Set up TOTP</button>
+            <div id="totpWizard" style="display:none; gap:.6rem; margin-top:.6rem;">
+              <img id="totpQr" alt="Scan QR with your Authenticator" style="max-width:180px; background:#fff; padding:.25rem; border-radius:6px; display:block;">
+              <input type="text" id="totpCode" class="field-input" placeholder="Enter 6-digit code" inputmode="numeric" pattern="\d*" style="margin-top:.5rem;">
+              <div class="edit-actions">
+                <button type="button" class="btn btn-success-solid" id="btnVerifyTotp">Verify & Enable</button>
+              </div>
+            </div>
+          </div>
+          <div id="mfaDisable" style="display:none;">
+            <input type="password" id="mfaDisablePw" class="field-input" placeholder="Confirm your password">
+            <div class="edit-actions">
+              <button type="button" class="btn btn-danger-solid" id="btnDisableTotp">Disable TOTP</button>
+            </div>
+          </div>
+        </div>
+        <hr style="opacity:.2; border:none; border-top:1px solid var(--color-border); margin:.75rem 0;">
+        <div class="field-label">Avatar</div>
+        <input type="file" id="avatarFile" accept="image/*" class="field-input">
+        <div class="edit-actions">
+          <button type="button" class="btn btn-info" id="btnUploadAvatar">Upload Avatar</button>
+        </div>
+      </div>
+      <div class="profile-edit">
+        <h2 class="section-label" style="margin-top:0;">Appearance</h2>
         <div class="theme-toggle" style="margin-top:.35rem;">
           <button type="button" id="themeToggleBtn" class="theme-toggle-btn" aria-label="Toggle theme" title="Toggle dark / light theme">🌙</button>
         </div>
@@ -52,9 +95,18 @@ async function fetchUserProfile(){
       $('username').textContent = u.username || 'Anonymous';
       $('email').textContent = u.email || 'Not set';
       $('bio').textContent = u.bio || 'No bio yet.';
-      const pic = u.profilePicture || '/images/default-avatar.png';
+  const pic = u.profilePicture || '/images/default-avatar.png';
       const imgEl = $('profilePicture');
       if (imgEl) imgEl.src = pic;
+  // Seed security form values
+  const eu = String(u.email || '').trim();
+  document.getElementById('secUsername').value = u.username || '';
+  document.getElementById('secEmail').value = eu;
+  // MFA status
+  const mfaOn = !!u.mfaEnabled;
+  document.getElementById('mfaStatus').textContent = mfaOn ? 'TOTP is enabled on your account.' : 'TOTP is not enabled.';
+  document.getElementById('mfaSetup').style.display = mfaOn ? 'none' : 'block';
+  document.getElementById('mfaDisable').style.display = mfaOn ? 'block' : 'none';
     } else {
       toast?.error?.('Failed to load profile');
     }
@@ -79,4 +131,62 @@ async function saveProfileChanges(){
   } catch(e){ toast?.error?.('Network error'); }
 }
 document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('editProfileButton')?.addEventListener('click', editProfile); fetchUserProfile(); });
+
+// Security actions
+document.addEventListener('DOMContentLoaded', () => {
+  const $ = (id)=>document.getElementById(id);
+  $('btnSaveIdentity')?.addEventListener('click', async () => {
+    try {
+      const payload = { username: $('secUsername').value, email: $('secEmail').value };
+      const r = await fetch('/api/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (r.ok) { toast?.success?.('Identity updated'); fetchUserProfile(); }
+      else { const t = await r.json().catch(()=>({})); toast?.error?.(t?.message || 'Update failed'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+  $('btnChangePw')?.addEventListener('click', async () => {
+    try {
+      const payload = { currentPassword: $('currPw').value, newPassword: $('newPw').value };
+      const r = await fetch('/api/profile/password', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+      if (r.ok) { toast?.success?.('Password updated'); $('currPw').value=''; $('newPw').value=''; }
+      else { const t = await r.json().catch(()=>({})); toast?.error?.(t?.message || 'Change failed'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+  $('btnStartTotp')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/security/totp/initiate');
+      const j = await r.json();
+      if (r.ok && (j?.data?.qr || j?.data?.otpauth)) {
+        $('totpWizard').style.display = 'block';
+        $('totpQr').src = j.data.qr;
+      } else { toast?.error?.('Failed to start TOTP'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+  $('btnVerifyTotp')?.addEventListener('click', async () => {
+    try {
+      const code = $('totpCode').value;
+      const r = await fetch('/api/security/totp/verify', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ token: code }) });
+      const j = await r.json().catch(()=>({}));
+      if (r.ok) { toast?.success?.('MFA enabled'); $('totpWizard').style.display='none'; fetchUserProfile(); }
+      else { toast?.error?.(j?.message || 'Invalid code'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+  $('btnDisableTotp')?.addEventListener('click', async () => {
+    try {
+      const r = await fetch('/api/security/totp/disable', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ currentPassword: $('mfaDisablePw').value }) });
+      const j = await r.json().catch(()=>({}));
+      if (r.ok) { toast?.success?.('MFA disabled'); $('mfaDisablePw').value=''; fetchUserProfile(); }
+      else { toast?.error?.(j?.message || 'Disable failed'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+  $('btnUploadAvatar')?.addEventListener('click', async () => {
+    try {
+      const file = $('avatarFile').files?.[0]; if (!file) return toast?.error?.('Choose an image');
+      const fd = new FormData(); fd.append('avatar', file);
+      const r = await fetch('/api/profile/avatar', { method:'POST', body: fd });
+      const j = await r.json().catch(()=>({}));
+      if (r.ok) { toast?.success?.('Avatar updated'); fetchUserProfile(); }
+      else { toast?.error?.(j?.message || 'Upload failed'); }
+    } catch { toast?.error?.('Network error'); }
+  });
+});
 </script>
