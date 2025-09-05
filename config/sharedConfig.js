@@ -22,11 +22,11 @@ export const NUDESHARED_DIR = process.env.NUDESHARED_DIR || '';
 export const PRELOAD_RADIUS = clamp(process.env.PRELOAD_RADIUS ?? process.env.PRELOAD_NEIGHBOR_RADIUS ?? 2, 0, 10);
 
 // Database (Postgres preferred; SQLite fallback handled by shared db.js)
-export const DATABASE_URL = process.env.DATABASE_URL || '';
-export const PGHOST = process.env.PGHOST || '';
+export const PGHOST = process.env.PGHOST || 'localhost';
 export const PGPORT = Number(process.env.PGPORT || 5432);
-export const PGUSER = process.env.PGUSER || '';
+export const PGUSER = process.env.PGUSER || 'postgres';
 export const PGPASSWORD = process.env.PGPASSWORD || '';
 export const PGDATABASE = process.env.PGDATABASE || process.env.PGDB || '';
+// Default SQLite path relative to repo root: database/dbfile.db
+export const SQLITE_PATH = process.env.SQLITE_PATH || 'database/dbfile.db';
 export const DATABASE_SSL = process.env.DATABASE_SSL || process.env.PGSSL || '';
-export const SQLITE_PATH = process.env.SQLITE_PATH || '';

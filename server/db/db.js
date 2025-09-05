@@ -1,6 +1,7 @@
 // Database abstraction with PostgreSQL preferred and SQLite fallback
 import Logger from '../logger/serverLogger.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import fs from 'fs';
 let BetterSqlite3;
 async function loadPackage(name) {
@@ -18,6 +19,10 @@ const MODULE = 'DB';
 let pool; // PG singleton
 let sqliteDb; // SQLite singleton (better-sqlite3 database instance)
 let driver = 'none'; // 'pg' | 'sqlite' | 'none'
+
+// Derive __dirname in ESM
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function buildConfig() {
   const url = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
@@ -62,8 +67,11 @@ export async function initDb() {
       const mod = await loadPackage('better-sqlite3');
       BetterSqlite3 = mod.default || mod;
     }
-    const defaultDir = path.resolve(process.cwd(), 'data');
-    const sqlitePath = process.env.SQLITE_PATH || path.join(defaultDir, 'app.sqlite');
+  // Default location: a repo-level "database/dbfile.db" next to the NudeShared folder
+  // From this file at NudeShared/server/db, go up 3 to reach the repo root
+  const repoRoot = path.resolve(__dirname, '..', '..', '..');
+  const defaultPath = path.join(repoRoot, 'database', 'dbfile.db');
+  const sqlitePath = process.env.SQLITE_PATH || defaultPath;
     const dir = path.dirname(sqlitePath);
     try { fs.mkdirSync(dir, { recursive: true }); } catch {}
     sqliteDb = new BetterSqlite3(sqlitePath);
