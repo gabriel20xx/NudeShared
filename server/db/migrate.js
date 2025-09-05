@@ -49,6 +49,7 @@ async function ensureUsersTable() {
 export async function runMigrations() {
   Logger.info(MODULE, 'Running database migrations...');
   await ensureUsersTable();
+  await ensureMediaTable();
   await ensureMediaLikeSaveTables();
   Logger.success(MODULE, 'Migrations complete');
 }
@@ -97,6 +98,40 @@ async function ensureMediaLikeSaveTables() {
       );
     `);
     await query(`CREATE INDEX IF NOT EXISTS media_saves_key_idx ON media_saves (media_key);`);
+    return;
+  }
+}
+
+async function ensureMediaTable(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        original_filename TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS media_user_idx ON media (user_id);
+      CREATE INDEX IF NOT EXISTS media_key_idx ON media (media_key);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        original_filename TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    await query(`CREATE INDEX IF NOT EXISTS media_user_idx ON media (user_id);`);
+    await query(`CREATE INDEX IF NOT EXISTS media_key_idx ON media (media_key);`);
     return;
   }
 }

@@ -4,7 +4,7 @@ import session from 'express-session';
 import fetch from 'node-fetch';
 import http from 'http';
 import { fileURLToPath } from 'url';
-import { initDb, closeDb } from '../server/db/db.js';
+import { initDb, closeDb, query } from '../server/db/db.js';
 import { runMigrations } from '../server/db/migrate.js';
 import { buildAuthRouter } from '../server/auth/authRoutes.js';
 
@@ -47,9 +47,15 @@ export async function run(){
     const signup = await post(url + '/auth/signup', { email: 'alice@example.com', password: 'secret123' });
     assert.equal(signup.status, 200, 'signup 200');
     assert.ok(signup.json.user?.email === 'alice@example.com');
-    const setCookie = signup.headers.get('set-cookie');
+  const setCookie = signup.headers.get('set-cookie');
     assert.ok(setCookie, 'has set-cookie');
     const cookie = setCookie.split(';')[0];
+
+  // Verify password is stored hashed (salt:hash) and not plaintext
+  const { rows } = await query('SELECT password_hash FROM users WHERE email = $1', ['alice@example.com']);
+  assert.ok(rows && rows[0] && typeof rows[0].password_hash === 'string');
+  assert.notStrictEqual(rows[0].password_hash, 'secret123', 'password not stored in plaintext');
+  assert.match(rows[0].password_hash, /^[0-9a-f]+:[0-9a-f]+$/i, 'password stored as salt:hash hex');
 
     const me = await get(url + '/auth/me', cookie);
     assert.equal(me.status, 200); assert.ok(me.json.user?.email === 'alice@example.com');
