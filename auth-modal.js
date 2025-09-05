@@ -108,6 +108,8 @@
     });
   });
 
-  // Initialize UI state
+  // Initialize UI state strictly: overlay hidden, exactly one panel visible
+  overlay.hidden = true;
   updateHeaderButton();
+  activate(getInitialTabIdx());
 })();

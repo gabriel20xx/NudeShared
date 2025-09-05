@@ -497,6 +497,10 @@ html.no-scroll, body.no-scroll { overflow: hidden !important; }
 .link-no-underline { text-decoration: none !important; }
 .link-no-underline:hover, .link-no-underline:focus { text-decoration: none !important; }
 
+/* Respect the hidden attribute globally (defensive override) */
+[hidden] { display: none !important; }
+.auth-overlay[hidden] { display: none !important; }
+
 /* Auth overlay visuals (shared) */
 .auth-btn { background: var(--gradient-accent); color:#23272f; border:none; border-radius: var(--radius-pill); padding:.45rem .75rem; font-size:.8rem; font-weight:600; cursor:pointer; box-shadow: var(--shadow-sm); }
 .auth-btn:hover { background: var(--gradient-accent-rev); color:#fff; }
