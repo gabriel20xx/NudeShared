@@ -19,6 +19,9 @@ async function ensureUsersTable() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT false;
+  -- Ensure username is unique (case-insensitive) when set
+  CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users ((lower(username))) WHERE username IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS users_username_idx ON users (username);
     `);
     return;
   }
@@ -36,7 +39,10 @@ async function ensureUsersTable() {
     const addCol = async (sql) => {
       try { await query(sql); } catch (e) { /* ignore duplicate column errors */ }
     };
-    await addCol(`ALTER TABLE users ADD COLUMN username TEXT`);
+  await addCol(`ALTER TABLE users ADD COLUMN username TEXT`);
+  // Enforce uniqueness on username (case-insensitive for ASCII)
+  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username COLLATE NOCASE)`); } catch (e) { /* ignore */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS users_username_idx ON users (username)`); } catch (e) { /* ignore */ }
     await addCol(`ALTER TABLE users ADD COLUMN avatar_url TEXT`);
     await addCol(`ALTER TABLE users ADD COLUMN bio TEXT`);
     await addCol(`ALTER TABLE users ADD COLUMN totp_secret TEXT`);

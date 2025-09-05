@@ -16,6 +16,9 @@ function verifyPassword(password, stored) {
 }
 
 function normalizeEmail(email){ return String(email || '').trim().toLowerCase(); }
+function normalizeUsername(name){
+  return String(name || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,64);
+}
 function validEmail(email) { return /.+@.+\..+/.test(normalizeEmail(email)); }
 function validPassword(pw) { return String(pw || '').length >= 6; }
 function sanitizeUserRow(row) { return row ? { id: row.id, email: row.email, created_at: row.created_at } : null; }
@@ -47,6 +50,39 @@ export function buildAuthRouter(Router, options = {}) {
       const { rows } = await query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at', [normalized, password_hash]);
       const user = sanitizeUserRow(rows[0]); req.session.user = user; res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }
+  });
+
+  // Update username and/or email with uniqueness checks
+  router.put('/profile', rlMiddleware, async (req, res) => {
+    try {
+      const sess = req.session && req.session.user; if (!sess || !sess.id) return res.status(401).json({ error: 'Not authenticated' });
+      const { username, email } = req.body || {};
+      const updates = [];
+      const params = [];
+      // Email: normalize, validate, unique
+      if (email !== undefined) {
+        const normEmail = normalizeEmail(email);
+        if (!validEmail(normEmail)) return res.status(400).json({ error: 'Invalid email' });
+        const { rows: exists } = await query('SELECT id FROM users WHERE email = $1 AND id <> $2', [normEmail, sess.id]);
+        if (exists && exists.length) return res.status(409).json({ error: 'Email already in use' });
+        updates.push('email = $' + (params.push(normEmail)));
+      }
+      // Username: normalize to common chars, unique (case-insensitive via DB index)
+      if (username !== undefined) {
+        const normUser = normalizeUsername(username);
+        if (!normUser) return res.status(400).json({ error: 'Invalid username' });
+        const { rows: existsU } = await query('SELECT id FROM users WHERE lower(username) = lower($1) AND id <> $2', [normUser, sess.id]);
+        if (existsU && existsU.length) return res.status(409).json({ error: 'Username already in use' });
+        updates.push('username = $' + (params.push(normUser)));
+      }
+      if (updates.length === 0) return res.json({ ok: true });
+      params.push(sess.id);
+      await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
+      // Refresh session user
+      const { rows } = await query('SELECT id, email, created_at FROM users WHERE id = $1', [sess.id]);
+      req.session.user = sanitizeUserRow(rows[0]);
+      return res.json({ ok: true });
+    } catch (e) { Logger.error(MODULE, 'Profile update error', e); return res.status(500).json({ error: 'Failed to update profile' }); }
   });
 
   router.post('/login', rlMiddleware, async (req, res) => {

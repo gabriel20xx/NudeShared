@@ -124,10 +124,10 @@ function cancelEdit(){ const f=document.getElementById('editProfileForm'); if(f)
 async function saveProfileChanges(){
   const payload={ username:usernameInput.value, email:emailInput.value, bio:bioInput.value };
   try {
-    const r= await fetch('/api/profile',{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
+  const r= await fetch('/auth/profile',{ method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload)});
     const ok = r.ok;
     if(ok){ toast?.success?.('Profile updated'); fetchUserProfile(); cancelEdit(); }
-    else { toast?.error?.('Save failed'); }
+  else { const t = await r.json().catch(()=>({})); toast?.error?.(t?.error || t?.message || 'Save failed'); }
   } catch(e){ toast?.error?.('Network error'); }
 }
 document.addEventListener('DOMContentLoaded',()=>{ document.getElementById('editProfileButton')?.addEventListener('click', editProfile); fetchUserProfile(); });
@@ -138,9 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
   $('btnSaveIdentity')?.addEventListener('click', async () => {
     try {
       const payload = { username: $('secUsername').value, email: $('secEmail').value };
-      const r = await fetch('/api/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
-      if (r.ok) { toast?.success?.('Identity updated'); fetchUserProfile(); }
-      else { const t = await r.json().catch(()=>({})); toast?.error?.(t?.message || 'Update failed'); }
+  const r = await fetch('/auth/profile', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+  if (r.ok) { toast?.success?.('Identity updated'); fetchUserProfile(); }
+  else { const t = await r.json().catch(()=>({})); toast?.error?.(t?.error || t?.message || 'Update failed'); }
     } catch { toast?.error?.('Network error'); }
   });
   $('btnChangePw')?.addEventListener('click', async () => {
