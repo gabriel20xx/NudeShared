@@ -22,6 +22,7 @@ export const NUDESHARED_DIR = process.env.NUDESHARED_DIR || '';
 export const PRELOAD_RADIUS = clamp(process.env.PRELOAD_RADIUS ?? process.env.PRELOAD_NEIGHBOR_RADIUS ?? 2, 0, 10);
 
 // Database (Postgres preferred; SQLite fallback handled by shared db.js)
+export const DATABASE_URL = process.env.DATABASE_URL || process.env.POSTGRES_URL || '';
 export const PGHOST = process.env.PGHOST || 'localhost';
 export const PGPORT = Number(process.env.PGPORT || 5432);
 export const PGUSER = process.env.PGUSER || 'postgres';
