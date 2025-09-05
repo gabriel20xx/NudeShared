@@ -74,9 +74,19 @@
     document.body.classList.remove('no-scroll');
   }
 
-  // Header button: open if logged out; logout if logged in
+  // Header button: open if logged out; logout if logged in (verify server state first)
   openBtn.addEventListener('click', async ()=>{
     if(isLoggedIn()){
+      try {
+        const r = await fetch('/auth/me');
+        const j = await r.json().catch(()=>({}));
+        if (!r.ok || !j?.user) {
+          // Session expired on server; clear local flag and open login modal
+          setLoggedIn(false);
+          open();
+          return;
+        }
+      } catch {}
       try { await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); } catch {}
       setLoggedIn(false);
       (window.toast ? toast.info('Logged out') : alert('Logged out'));
@@ -112,9 +122,8 @@
         setLoggedIn(true); close();
         if(window.toast){ toast.success(mode === 'signup' ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
       } catch (e) {
-        // Fallback: simulate success offline
-        setLoggedIn(true); close();
-        if(window.toast){ toast.info('Offline mode: simulated login'); }
+        // No offline simulation: surface error and keep dialog open
+        if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
       }
     });
   });
