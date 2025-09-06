@@ -22,7 +22,7 @@ function normalizeUsername(name){
 }
 function validEmail(email) { return /.+@.+\..+/.test(normalizeEmail(email)); }
 function validPassword(pw) { return String(pw || '').length >= 6; }
-function sanitizeUserRow(row) { return row ? { id: row.id, email: row.email, created_at: row.created_at } : null; }
+function sanitizeUserRow(row) { return row ? { id: row.id, email: row.email, role: row.role || 'user', created_at: row.created_at } : null; }
 
 export function buildAuthRouter(Router, options = {}) {
   const { rateLimit = { windowMs: 60_000, max: 30 } } = options;
@@ -48,7 +48,7 @@ export function buildAuthRouter(Router, options = {}) {
       const { rows: existing } = await query('SELECT id FROM users WHERE email = $1', [normalized]);
       if (existing && existing.length) return res.status(409).json({ error: 'Email already registered' });
       const password_hash = hashPassword(password);
-      const { rows } = await query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, created_at', [normalized, password_hash]);
+  const { rows } = await query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at', [normalized, password_hash]);
       const user = sanitizeUserRow(rows[0]); req.session.user = user; res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }
   });
@@ -75,7 +75,7 @@ export function buildAuthRouter(Router, options = {}) {
       if (!updates.length) return res.json({ ok: true });
       params.push(sess.id);
       await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
-      const { rows } = await query('SELECT id, email, created_at FROM users WHERE id = $1', [sess.id]);
+  const { rows } = await query('SELECT id, email, role, created_at FROM users WHERE id = $1', [sess.id]);
       req.session.user = sanitizeUserRow(rows[0]);
       res.json({ ok: true });
     } catch (e) { Logger.error(MODULE, 'Profile update error', e); res.status(500).json({ error: 'Failed to update profile' }); }
@@ -86,7 +86,7 @@ export function buildAuthRouter(Router, options = {}) {
       const { email, password } = req.body || {};
       const normalized = normalizeEmail(email);
       if (!validEmail(normalized) || !validPassword(password)) return res.status(400).json({ error: 'Invalid credentials' });
-      const { rows } = await query('SELECT id, email, password_hash, created_at FROM users WHERE email = $1', [normalized]);
+  const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
       if (!rows || rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
       const row = rows[0]; if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
       const user = sanitizeUserRow(row); req.session.user = user; res.json({ user });

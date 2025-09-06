@@ -28,13 +28,23 @@ export function buildAdminSettingsRouter(options={}){
       const entries = Object.entries(updates).slice(0,100);
       for(const [k,v] of entries){
         if(getDriver()==='pg'){
-          await query('INSERT INTO settings(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()', [k, String(v)]);
+            await query('INSERT INTO settings(key,value,updated_at) VALUES($1,$2,NOW()) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=NOW()', [k, String(v)]);
         } else {
-          await query('INSERT INTO settings(key,value,updated_at) VALUES(?,?,datetime("now")) ON CONFLICT(key) DO UPDATE SET value=excluded.value, updated_at=datetime("now")', [k, String(v)]);
+            // Some SQLite builds may lack full UPSERT support; emulate with try/replace
+            try {
+              await query('INSERT INTO settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP)', [k, String(v)]);
+            } catch(e) {
+              // assume conflict, perform update
+              await query('UPDATE settings SET value=?, updated_at=CURRENT_TIMESTAMP WHERE key=?', [String(v), k]);
+            }
         }
       }
       res.json({ success:true, updated: entries.length });
-    } catch(e){ U.errorLog?.('ADMIN_SETTINGS','set', e); res.status(500).json({ success:false,error:'Failed to update settings'}); }
+    } catch(e){
+      U.errorLog?.('ADMIN_SETTINGS','set', e?.message || e);
+      try { console.error('ADMIN_SETTINGS set error', e); } catch {}
+      res.status(500).json({ success:false,error:'Failed to update settings'});
+    }
   });
 
   return router;

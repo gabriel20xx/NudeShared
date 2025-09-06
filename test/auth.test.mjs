@@ -6,7 +6,7 @@ import http from 'http';
 import { fileURLToPath } from 'url';
 import { initDb, closeDb, query } from '../server/db/db.js';
 import { runMigrations } from '../server/db/migrate.js';
-import { buildAuthRouter } from '../server/auth/authRoutes.js';
+import { buildAuthRouter } from '../server/api/authRoutes.js';
 
 function startServer(app){
   return new Promise((resolve)=>{
