@@ -19,6 +19,11 @@ async function ensureUsersTable() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS bio TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS totp_secret TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS mfa_enabled BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT false;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
   -- Ensure username is unique (case-insensitive) when set
   CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users ((lower(username))) WHERE username IS NOT NULL;
   CREATE INDEX IF NOT EXISTS users_username_idx ON users (username);
@@ -44,9 +49,14 @@ async function ensureUsersTable() {
   try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username COLLATE NOCASE)`); } catch (e) { /* ignore */ }
   try { await query(`CREATE INDEX IF NOT EXISTS users_username_idx ON users (username)`); } catch (e) { /* ignore */ }
     await addCol(`ALTER TABLE users ADD COLUMN avatar_url TEXT`);
-    await addCol(`ALTER TABLE users ADD COLUMN bio TEXT`);
-    await addCol(`ALTER TABLE users ADD COLUMN totp_secret TEXT`);
-    await addCol(`ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0`);
+      await addCol(`ALTER TABLE users ADD COLUMN bio TEXT`);
+      await addCol(`ALTER TABLE users ADD COLUMN totp_secret TEXT`);
+      await addCol(`ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0`);
+      await addCol(`ALTER TABLE users ADD COLUMN role TEXT`);
+      await addCol(`ALTER TABLE users ADD COLUMN permissions TEXT`);
+      await addCol(`ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0`);
+      await addCol(`ALTER TABLE users ADD COLUMN password_reset_token TEXT`);
+      await addCol(`ALTER TABLE users ADD COLUMN password_reset_expires TEXT`);
     return;
   }
   throw new Error('No database driver available for migrations');
@@ -57,6 +67,7 @@ export async function runMigrations() {
   await ensureUsersTable();
   await ensureMediaTable();
   await ensureMediaLikeSaveTables();
+  await ensureSettingsTable();
   Logger.success(MODULE, 'Migrations complete');
 }
 
@@ -117,11 +128,17 @@ async function ensureMediaTable(){
         user_id BIGINT,
         media_key TEXT NOT NULL,
         app TEXT,
+        title TEXT,
+        category TEXT,
+        active BOOLEAN NOT NULL DEFAULT true,
+        metadata JSONB,
         original_filename TEXT,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
       CREATE INDEX IF NOT EXISTS media_user_idx ON media (user_id);
       CREATE INDEX IF NOT EXISTS media_key_idx ON media (media_key);
+      CREATE INDEX IF NOT EXISTS media_category_idx ON media (category);
+      CREATE INDEX IF NOT EXISTS media_active_idx ON media (active);
     `);
     return;
   }
@@ -132,12 +149,42 @@ async function ensureMediaTable(){
         user_id INTEGER,
         media_key TEXT NOT NULL,
         app TEXT,
+        title TEXT,
+        category TEXT,
+        active INTEGER NOT NULL DEFAULT 1,
+        metadata TEXT,
         original_filename TEXT,
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
     await query(`CREATE INDEX IF NOT EXISTS media_user_idx ON media (user_id);`);
     await query(`CREATE INDEX IF NOT EXISTS media_key_idx ON media (media_key);`);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_category_idx ON media (category);`); } catch {}
+    try { await query(`CREATE INDEX IF NOT EXISTS media_active_idx ON media (active);`); } catch {}
+    return;
+  }
+}
+
+async function ensureSettingsTable(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS settings (
+        key TEXT PRIMARY KEY,
+        value TEXT,
+        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
     return;
   }
 }
