@@ -1,7 +1,22 @@
 <% if (!isAuthenticated) { %>
   <main style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);min-height:50vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;" aria-label="Login required">
     <p style="font-size:1rem;color:var(--color-text-dim);">You must be logged in to view your profile.</p>
-    <a href="/auth/login" class="btn">Log In</a>
+    <a href="#" id="profileLoginLink" class="btn" role="button">Log In</a>
+    <script>
+      (function(){
+        function wire(){
+          var link = document.getElementById('profileLoginLink');
+          var opener = document.getElementById('authOpenBtn');
+          if(!link || !opener) return;
+          link.addEventListener('click', function(e){
+            e.preventDefault();
+            // Trigger the existing auth modal logic
+            opener.click();
+          }, { once: true });
+        }
+        if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', wire); else wire();
+      })();
+    </script>
   </main>
 <% } else { %>
 <main id="profile-container" class="profile-page" aria-label="User profile" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);">
