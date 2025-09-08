@@ -10,8 +10,8 @@
   const loginPanel = overlay.querySelector('#authLoginPanel');
   const signupPanel = overlay.querySelector('#authSignupPanel');
   const submitBtns = overlay.querySelectorAll('.auth-submit');
-  const tabButtons = [loginTab, signupTab];
-  const panels = [loginPanel, signupPanel];
+  const tabButtons = [loginTab, signupTab].filter(Boolean);
+  const panels = [loginPanel, signupPanel].filter(Boolean);
 
   const STORAGE_KEY = 'authLoggedIn';
   const LAST_TAB_KEY = 'authLastTab';
@@ -24,14 +24,15 @@
   }
 
   function updateHeaderButton(){
+    const loginOnly = !signupTab || !signupPanel; // admin mode without signup
     if(isLoggedIn()){
       openBtn.textContent = 'Log out';
       openBtn.setAttribute('aria-haspopup', 'false');
       openBtn.title = 'Log out';
     } else {
-      openBtn.textContent = 'Log in / Sign up';
+      openBtn.textContent = loginOnly ? 'Log in' : 'Log in / Sign up';
       openBtn.setAttribute('aria-haspopup', 'dialog');
-      openBtn.title = 'Log in or Sign up';
+      openBtn.title = loginOnly ? 'Log in' : 'Log in or Sign up';
     }
   }
 
@@ -103,7 +104,7 @@
 
   // Tabs
   loginTab && loginTab.addEventListener('click', ()=> activate(0));
-  signupTab && signupTab.addEventListener('click', ()=> activate(1));
+  if(signupTab) signupTab.addEventListener('click', ()=> activate( panels.indexOf(signupPanel) ));
 
   // Prevent form submission and call backend
   overlay.addEventListener('submit', (e)=> e.preventDefault());
@@ -111,16 +112,17 @@
     btn.addEventListener('click', async ()=>{
       const mode = btn.getAttribute('data-mode');
       try {
-        const payload = (mode === 'signup')
+  const isSignup = (mode === 'signup') && signupPanel;
+  const payload = (isSignup)
           ? { email: document.getElementById('signupEmail')?.value || '', password: document.getElementById('signupPassword')?.value || '' }
           : { email: document.getElementById('loginEmail')?.value || '', password: document.getElementById('loginPassword')?.value || '' };
-        const res = await fetch(`/auth/${mode === 'signup' ? 'signup' : 'login'}`, {
+  const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         const data = await res.json().catch(()=> ({}));
         if (!res.ok) throw new Error(data?.error || 'Request failed');
-        setLoggedIn(true); close();
-        if(window.toast){ toast.success(mode === 'signup' ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+  setLoggedIn(true); close();
+  if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
       } catch (e) {
         // No offline simulation: surface error and keep dialog open
         if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }

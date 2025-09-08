@@ -36,7 +36,9 @@
           <h2 id="authTitle" class="auth-title">Welcome</h2>
           <div class="auth-tabs" role="tablist" aria-label="Authentication">
             <button class="auth-tab active" role="tab" aria-selected="true" aria-controls="authLoginPanel" id="authLoginTab">Log in</button>
-            <button class="auth-tab" role="tab" aria-selected="false" aria-controls="authSignupPanel" id="authSignupTab">Sign up</button>
+            <% if (!disableSignup) { %>
+              <button class="auth-tab" role="tab" aria-selected="false" aria-controls="authSignupPanel" id="authSignupTab">Sign up</button>
+            <% } %>
           </div>
         </div>
         <div class="auth-body">
@@ -53,6 +55,7 @@
               <button type="button" class="btn-success-solid auth-submit" data-mode="login">Log in</button>
             </div>
           </form>
+          <% if (!disableSignup) { %>
           <form id="authSignupPanel" class="auth-form" role="tabpanel" aria-labelledby="authSignupTab" hidden>
             <div class="auth-field">
               <label for="signupEmail">Email</label>
@@ -70,6 +73,7 @@
               <button type="button" class="btn-info auth-submit" data-mode="signup">Create account</button>
             </div>
           </form>
+          <% } %>
         </div>
   <p class="auth-note text-dim">Use a test email; passwords are stored hashed.</p>
       </div>
