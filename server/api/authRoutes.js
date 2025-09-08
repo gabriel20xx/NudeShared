@@ -40,17 +40,52 @@ export function buildAuthRouter(Router, options = {}) {
     const key = `${ip}:${req.path}`; if (!checkRateLimit(key)) return res.status(429).json({ error: 'Too many requests' }); next();
   }
 
+  // Bootstrap-aware signup: if no admin exists, first successful signup becomes admin
   router.post('/signup', rlMiddleware, async (req, res) => {
     try {
       const { email, password } = req.body || {};
       const normalized = normalizeEmail(email);
       if (!validEmail(normalized) || !validPassword(password)) return res.status(400).json({ error: 'Invalid email or password too short (min 6)' });
+
+      // Check existing email
       const { rows: existing } = await query('SELECT id FROM users WHERE email = $1', [normalized]);
       if (existing && existing.length) return res.status(409).json({ error: 'Email already registered' });
+
+      // Determine if any admin user exists
+      let elevate = false;
+      try {
+        const { rows: adminCheck } = await query("SELECT 1 FROM users WHERE role IN ('admin','superadmin') LIMIT 1", []);
+        elevate = !adminCheck || adminCheck.length === 0; // no admin yet -> elevate
+      } catch (e) {
+        // If role column missing or query fails, fallback: elevate only when table empty
+        try {
+          const { rows: anyUser } = await query('SELECT 1 FROM users LIMIT 1', []);
+          elevate = !anyUser || anyUser.length === 0;
+        } catch {}
+      }
+
       const password_hash = hashPassword(password);
-  const { rows } = await query('INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at', [normalized, password_hash]);
-      const user = sanitizeUserRow(rows[0]); req.session.user = user; res.json({ user });
+      const insertSql = elevate
+        ? 'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at'
+        : 'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at';
+      const params = elevate ? [normalized, password_hash, 'admin'] : [normalized, password_hash];
+      const { rows } = await query(insertSql, params);
+      const user = sanitizeUserRow(rows[0]);
+      req.session.user = user;
+      res.json({ user, elevated: elevate });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }
+  });
+
+  // Endpoint to check if an admin exists (for frontend to decide bootstrap flow)
+  router.get('/bootstrap/admin-needed', async (_req, res) => {
+    try {
+      const { rows: adminCheck } = await query("SELECT 1 FROM users WHERE role IN ('admin','superadmin') LIMIT 1", []);
+      const needed = !adminCheck || adminCheck.length === 0;
+      res.json({ adminNeeded: needed });
+    } catch (e) {
+      Logger.error(MODULE, 'Admin-needed check failed', e);
+      res.json({ adminNeeded: false });
+    }
   });
 
   router.put('/profile', rlMiddleware, async (req, res) => {
