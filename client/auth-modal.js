@@ -122,6 +122,7 @@
         const data = await res.json().catch(()=> ({}));
         if (!res.ok) throw new Error(data?.error || 'Request failed');
   setLoggedIn(true); close();
+  try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
   if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
       } catch (e) {
         // No offline simulation: surface error and keep dialog open
