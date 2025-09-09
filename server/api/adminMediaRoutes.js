@@ -29,12 +29,58 @@ export function buildAdminMediaRouter(options={}) {
           const term = `%${search}%`; params.push(term, term); where.push('(lower(title) LIKE ? OR lower(media_key) LIKE ?)');
         }
       }
-      let sql = 'SELECT id, media_key as "mediaKey", user_id as "userId", category, title, active, created_at as "createdAt" FROM media';
+      let sql = `SELECT m.id, m.media_key as "mediaKey", m.user_id as "userId", m.category, m.title, m.active, m.created_at as "createdAt",
+        u.username as "generatorUsername", u.email as "generatorEmail"
+        FROM media m LEFT JOIN users u ON u.id = m.user_id`;
       if(where.length) sql += ' WHERE ' + where.join(' AND ');
       sql += ' ORDER BY created_at DESC LIMIT 500';
       const r = await query(sql, params);
       res.json({ success:true, media: r.rows });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','list', e); res.status(500).json({ success:false,error:'Failed to list media'}); }
+  });
+
+  // Engagement counts for a batch of media keys
+  router.post(`${basePath}/media/engagement-counts`, ensureAuth, ensureAdmin, async (req,res)=>{
+    try{
+      const keys = Array.isArray(req.body?.keys) ? req.body.keys.map(k=>String(k||'').trim()).filter(Boolean) : [];
+      if(!keys.length) return res.json({ success:true, counts:{} });
+      const driver = getDriver();
+      const inPg = keys.map((_,i)=>`$${i+1}`).join(',');
+      const inLite = keys.map(()=> '?').join(',');
+      const likeSql = `SELECT media_key as key, COUNT(1) AS cnt FROM media_likes WHERE media_key IN (${driver==='pg'?inPg:inLite}) GROUP BY media_key`;
+      const saveSql = `SELECT media_key as key, COUNT(1) AS cnt FROM media_saves WHERE media_key IN (${driver==='pg'?inPg:inLite}) GROUP BY media_key`;
+      const [likes, saves] = await Promise.all([ query(likeSql, keys), query(saveSql, keys) ]);
+      const lmap = Object.fromEntries((likes.rows||[]).map(r=>[String(r.key), Number(r.cnt)]));
+      const smap = Object.fromEntries((saves.rows||[]).map(r=>[String(r.key), Number(r.cnt)]));
+      const out = {}; for(const k of keys){ out[k] = { likes: lmap[k]||0, saves: smap[k]||0 }; }
+      res.json({ success:true, counts: out });
+    }catch(e){ U.errorLog?.('ADMIN_MEDIA','counts', e); res.status(500).json({ success:false,error:'Failed to load counts'}); }
+  });
+
+  // List usernames of users who liked a media item
+  router.get(`${basePath}/media/likers`, ensureAuth, ensureAdmin, async (req,res)=>{
+    try{
+      const key = String(req.query.mediaKey||'').trim(); if(!key) return res.status(400).json({ success:false,error:'mediaKey required' });
+      const driver = getDriver();
+      const sql = driver==='pg'
+        ? 'SELECT u.id, u.username, u.email FROM media_likes l JOIN users u ON u.id = l.user_id WHERE l.media_key=$1 ORDER BY u.username ASC LIMIT 500'
+        : 'SELECT u.id, u.username, u.email FROM media_likes l JOIN users u ON u.id = l.user_id WHERE l.media_key=? ORDER BY u.username ASC LIMIT 500';
+      const r = await query(sql, [key]);
+      res.json({ success:true, users: r.rows });
+    }catch(e){ U.errorLog?.('ADMIN_MEDIA','likers', e); res.status(500).json({ success:false,error:'Failed to load likers'}); }
+  });
+
+  // List usernames of users who saved a media item
+  router.get(`${basePath}/media/savers`, ensureAuth, ensureAdmin, async (req,res)=>{
+    try{
+      const key = String(req.query.mediaKey||'').trim(); if(!key) return res.status(400).json({ success:false,error:'mediaKey required' });
+      const driver = getDriver();
+      const sql = driver==='pg'
+        ? 'SELECT u.id, u.username, u.email FROM media_saves s JOIN users u ON u.id = s.user_id WHERE s.media_key=$1 ORDER BY u.username ASC LIMIT 500'
+        : 'SELECT u.id, u.username, u.email FROM media_saves s JOIN users u ON u.id = s.user_id WHERE s.media_key=? ORDER BY u.username ASC LIMIT 500';
+      const r = await query(sql, [key]);
+      res.json({ success:true, users: r.rows });
+    }catch(e){ U.errorLog?.('ADMIN_MEDIA','savers', e); res.status(500).json({ success:false,error:'Failed to load savers'}); }
   });
 
   // Batch media actions

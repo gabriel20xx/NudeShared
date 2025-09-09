@@ -17,21 +17,54 @@ export function buildAdminUsersRouter(options={}) {
   router.get(`${basePath}/users`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
       const search = (req.query.search||'').toString().trim().toLowerCase();
-      let sql = 'SELECT id,email,username,role,disabled,mfa_enabled as "mfaEnabled",created_at as "createdAt" FROM users';
       const params=[];
+      let where = '';
       if(search){
-        if(driver==='pg') {
-          const term = `%${search}%`; params.push(term, term);
-          sql += ' WHERE (lower(email) LIKE $1 OR lower(username) LIKE $2)';
-        } else {
-          const term = `%${search}%`; params.push(term, term);
-          sql += ' WHERE (lower(email) LIKE ? OR lower(username) LIKE ?)';
-        }
+        if(driver==='pg'){ const term = `%${search}%`; params.push(term, term); where = 'WHERE (lower(email) LIKE $1 OR lower(username) LIKE $2)'; }
+        else { const term = `%${search}%`; params.push(term, term); where = 'WHERE (lower(email) LIKE ? OR lower(username) LIKE ?)'; }
       }
-      sql += ' ORDER BY id DESC LIMIT 500';
-      const result = await query(sql, params);
-      res.json({ success:true, users: result.rows });
+      // Base user fields
+      const baseSql = `SELECT id,email,username,role,disabled,mfa_enabled as "mfaEnabled",created_at as "createdAt", last_login_at as "lastLoginAt" FROM users ${where} ORDER BY id DESC LIMIT 500`;
+      const result = await query(baseSql, params);
+      const users = result.rows || [];
+      if(!users.length) return res.json({ success:true, users: [] });
+      // Fetch counts for media/likes/saves in batch
+      const ids = users.map(u=>u.id);
+      const inPg = ids.map((_,i)=>`$${i+1}`).join(',');
+      const inLite = ids.map(()=>'?').join(',');
+      const likeSql = `SELECT user_id as id, COUNT(1) as cnt FROM media_likes WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
+      const saveSql = `SELECT user_id as id, COUNT(1) as cnt FROM media_saves WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
+      const genSql  = `SELECT user_id as id, COUNT(1) as cnt FROM media WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
+      const [likes, saves, gens] = await Promise.all([
+        query(likeSql, ids), query(saveSql, ids), query(genSql, ids)
+      ]);
+      const lmap = Object.fromEntries((likes.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
+      const smap = Object.fromEntries((saves.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
+      const gmap = Object.fromEntries((gens.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
+      const out = users.map(u=>({ ...u,
+        likedCount: lmap[u.id]||0,
+        savedCount: smap[u.id]||0,
+        generatedCount: gmap[u.id]||0
+      }));
+      res.json({ success:true, users: out });
     }catch(e){ U.errorLog?.('ADMIN_USERS','list', e); res.status(500).json({ success:false, error:'Failed to list users'}); }
+  });
+
+  // Update a single user's fields (username/email/role)
+  router.post(`${basePath}/users/:id/update`, ensureAuth, ensureAdmin, async (req,res)=>{
+    try {
+      const id = Number(req.params.id); if(!Number.isFinite(id)) return res.status(400).json({ success:false, error:'Invalid id' });
+      const { username, email, role } = req.body || {};
+      const sets=[]; const params=[];
+      if(typeof email === 'string'){ sets.push('email = ' + (driver==='pg'?`$${params.length+1}`:'?')); params.push(email.trim().toLowerCase()); }
+      if(typeof username === 'string'){ sets.push('username = ' + (driver==='pg'?`$${params.length+1}`:'?')); params.push(username.trim()); }
+      if(typeof role === 'string'){ sets.push('role = ' + (driver==='pg'?`$${params.length+1}`:'?')); params.push(role.trim()); }
+      if(!sets.length) return res.json({ success:true, updated:0 });
+      params.push(id);
+      const sql = `UPDATE users SET ${sets.join(', ')} WHERE id = ${driver==='pg'?`$${params.length}`:'?'}`;
+      const r = await query(sql, params);
+      res.json({ success:true, updated: r.rowCount ?? r.changes ?? 0 });
+    } catch(e){ U.errorLog?.('ADMIN_USERS','update', e); res.status(500).json({ success:false, error:'Update failed' }); }
   });
 
   // User media summary

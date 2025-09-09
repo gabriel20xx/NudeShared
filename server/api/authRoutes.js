@@ -166,8 +166,9 @@ export function buildAuthRouter(Router, options = {}) {
       }
       if (!row) return res.status(401).json({ error: 'Invalid credentials' });
       if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
-      const user = sanitizeUserRow(row);
-      req.session.user = user;
+  const user = sanitizeUserRow(row);
+  req.session.user = user;
+  try { await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [user.id]); } catch {}
       res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Login error', e); res.status(500).json({ error: 'Login failed' }); }
   });

@@ -24,6 +24,7 @@ async function ensureUsersTable() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS disabled BOOLEAN NOT NULL DEFAULT false;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_token TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS password_reset_expires TIMESTAMPTZ;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
   -- Ensure username is unique (case-insensitive) when set
   CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users ((lower(username))) WHERE username IS NOT NULL;
   CREATE INDEX IF NOT EXISTS users_username_idx ON users (username);
@@ -57,6 +58,7 @@ async function ensureUsersTable() {
       await addCol(`ALTER TABLE users ADD COLUMN disabled INTEGER NOT NULL DEFAULT 0`);
       await addCol(`ALTER TABLE users ADD COLUMN password_reset_token TEXT`);
       await addCol(`ALTER TABLE users ADD COLUMN password_reset_expires TEXT`);
+  await addCol(`ALTER TABLE users ADD COLUMN last_login_at TEXT`);
     return;
   }
   throw new Error('No database driver available for migrations');
