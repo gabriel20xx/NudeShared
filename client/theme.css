@@ -304,7 +304,8 @@ html, body { text-align: center; }
 :root[data-theme='dark'] .bottom-nav { background: rgba(13,15,17,0.82); }
 
 /* Toast / notification system */
-.toast-root { position: fixed; top: calc(var(--topbar-height) + .75rem); right: .85rem; display: flex; flex-direction: column; gap: .65rem; z-index: 120; width: min(340px, calc(100vw - 1.5rem)); pointer-events: none; }
+/* Ensure toasts are above any overlays (auth overlay z-index: 200, media lightbox may reach 9999) */
+.toast-root { position: fixed; top: calc(var(--topbar-height) + .75rem); right: .85rem; display: flex; flex-direction: column; gap: .65rem; z-index: 10050; width: min(340px, calc(100vw - 1.5rem)); pointer-events: none; }
 .toast { --_bg: var(--color-surface); --_border: var(--color-border); --_accent: var(--color-accent); display: flex; align-items: flex-start; gap: .75rem; background: var(--_bg); color: var(--color-text); border: 1px solid var(--_border); border-left: 4px solid var(--_accent); padding: .85rem .95rem .85rem .95rem; border-radius: var(--radius-md); box-shadow: var(--shadow-lg); font-size: var(--font-size-sm); line-height: 1.3; position: relative; overflow: hidden; isolation: isolate; pointer-events: auto; animation: toast-in .45s cubic-bezier(.4,0,.2,1); }
 .toast.toast-info { --_accent: var(--color-info); }
 .toast.toast-success { --_accent: var(--color-success); }
@@ -327,7 +328,7 @@ html, body { text-align: center; }
     transform: translateX(-50%);
     top: calc(var(--topbar-height) + env(safe-area-inset-top, 0px) + .5rem);
     width: min(900px, calc(100vw - 1.25rem));
-    z-index: 70; /* Above header and content, below toasts (120) */
+    z-index: 70; /* Above header and content, below toasts (10050) */
     pointer-events: none; /* Don’t block clicks to underlying UI */
 }
 
