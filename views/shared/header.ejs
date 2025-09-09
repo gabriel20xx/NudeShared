@@ -15,6 +15,8 @@
   <script defer src="/shared/client/auth-modal.js"></script>
 </head>
 <body>
+  <% /* Ensure disableSignup has a safe default for apps that don't set it */
+     const disableSignupSafe = (typeof disableSignup !== 'undefined') ? disableSignup : false; %>
   <div class="body-container">
     <div id="toast-root" class="toast-root" aria-live="polite" aria-atomic="false"></div>
     <header class="app-topbar" role="banner">
@@ -36,7 +38,7 @@
           <h2 id="authTitle" class="auth-title">Welcome</h2>
           <div class="auth-tabs" role="tablist" aria-label="Authentication">
             <button class="auth-tab active" role="tab" aria-selected="true" aria-controls="authLoginPanel" id="authLoginTab">Log in</button>
-            <% if (!disableSignup) { %>
+            <% if (!disableSignupSafe) { %>
               <button class="auth-tab" role="tab" aria-selected="false" aria-controls="authSignupPanel" id="authSignupTab">Sign up</button>
             <% } %>
           </div>
@@ -55,7 +57,7 @@
               <button type="button" class="btn-success-solid auth-submit" data-mode="login">Log in</button>
             </div>
           </form>
-          <% if (!disableSignup) { %>
+          <% if (!disableSignupSafe) { %>
           <form id="authSignupPanel" class="auth-form" role="tabpanel" aria-labelledby="authSignupTab" hidden>
             <div class="auth-field">
               <label for="signupEmail">Email</label>
