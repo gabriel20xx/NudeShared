@@ -135,13 +135,50 @@
 
   // Prevent form submission and call backend
   overlay.addEventListener('submit', (e)=> e.preventDefault());
+  // Submission helper used by both buttons and Enter key
+  async function handleSubmit(mode){
+    try {
+      const isSignup = (mode === 'signup') && signupPanel;
+      let payload;
+      if(isSignup){
+        const email = document.getElementById('signupEmail')?.value || '';
+        const password = document.getElementById('signupPassword')?.value || '';
+        const confirm = document.getElementById('signupConfirm')?.value || '';
+        const username = document.getElementById('signupUsername')?.value || '';
+        if(password !== confirm){
+          if(window.toast){ toast.error('Passwords do not match'); } else { alert('Passwords do not match'); }
+          return;
+        }
+        if(scorePassword(password) < 3){ if(window.toast){ toast.error('Password is too weak'); } else { alert('Password is too weak'); } return; }
+        payload = { email, password, username };
+      } else {
+        payload = {
+          email: document.getElementById('loginEmail')?.value || '',
+          password: document.getElementById('loginPassword')?.value || ''
+        };
+      }
+      const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+      });
+      const data = await res.json().catch(()=> ({}));
+      if (!res.ok) throw new Error(data?.error || 'Request failed');
+      setLoggedIn(true);
+      if(!isBootstrapLocked) close();
+      try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
+      if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+    } catch (e) {
+      if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
+    }
+  }
+
   // Enter key submits the visible panel (login or signup)
   overlay.addEventListener('keydown', (e)=>{
     if(e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey){
       const activePanel = panels.find(p=>p && !p.hidden);
       if(!activePanel) return;
-      const modeBtn = activePanel.querySelector('.auth-submit');
-      if(modeBtn){ e.preventDefault(); modeBtn.click(); }
+      e.preventDefault();
+      const isSignupVisible = signupPanel && !signupPanel.hidden && activePanel === signupPanel;
+      handleSubmit(isSignupVisible ? 'signup' : 'login');
     }
   });
   // Password strength evaluation
@@ -204,38 +241,7 @@
   submitBtns.forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const mode = btn.getAttribute('data-mode');
-      try {
-        const isSignup = (mode === 'signup') && signupPanel;
-        let payload;
-        if(isSignup){
-          const email = document.getElementById('signupEmail')?.value || '';
-          const password = document.getElementById('signupPassword')?.value || '';
-          const confirm = document.getElementById('signupConfirm')?.value || '';
-          const username = document.getElementById('signupUsername')?.value || '';
-          if(password !== confirm){
-            if(window.toast){ toast.error('Passwords do not match'); } else { alert('Passwords do not match'); }
-            return;
-          }
-          if(scorePassword(password) < 3){ if(window.toast){ toast.error('Password is too weak'); } else { alert('Password is too weak'); } return; }
-          payload = { email, password, username };
-        } else {
-          payload = {
-            email: document.getElementById('loginEmail')?.value || '',
-            password: document.getElementById('loginPassword')?.value || ''
-          };
-  }
-        const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-        });
-        const data = await res.json().catch(()=> ({}));
-        if (!res.ok) throw new Error(data?.error || 'Request failed');
-        setLoggedIn(true);
-        if(!isBootstrapLocked) close(); // keep open only if locked? (bootstrap we redirect immediately)
-        try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
-        if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
-      } catch (e) {
-        if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
-      }
+      await handleSubmit(mode);
     });
   });
 
