@@ -15,6 +15,8 @@
   const pwInput = document.getElementById('signupPassword');
   const pwMeter = document.getElementById('signupPwMeter');
   const pwFeedback = document.getElementById('signupPwFeedback');
+  const pwConfirm = document.getElementById('signupConfirm');
+  const pwConfirmErr = document.getElementById('signupConfirmError');
 
   const STORAGE_KEY = 'authLoggedIn';
   const LAST_TAB_KEY = 'authLastTab';
@@ -156,23 +158,43 @@
       bar.style.background = color;
     }
   }
-  pwInput && pwInput.addEventListener('input', updatePwStrength);
-  updatePwStrength();
+  function updateSignupState(){
+    const btn = overlay.querySelector('.auth-submit[data-mode="signup"]');
+    if(!btn) return;
+    const pw = pwInput ? (pwInput.value || '') : '';
+    const cf = pwConfirm ? (pwConfirm.value || '') : '';
+    const s = scorePassword(pw);
+    const okStrength = s >= 3; // Fair or better
+    const match = pw && cf && pw === cf;
+    if(pwConfirmErr){ pwConfirmErr.style.display = (cf && !match) ? 'block' : 'none'; }
+    btn.disabled = !(okStrength && match);
+  }
+  pwInput && pwInput.addEventListener('input', ()=>{ updatePwStrength(); updateSignupState(); });
+  pwConfirm && pwConfirm.addEventListener('input', updateSignupState);
+  updatePwStrength(); updateSignupState();
   submitBtns.forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const mode = btn.getAttribute('data-mode');
       try {
         const isSignup = (mode === 'signup') && signupPanel;
-        const payload = (isSignup)
-          ? {
-              email: document.getElementById('signupEmail')?.value || '',
-              password: document.getElementById('signupPassword')?.value || '',
-              username: document.getElementById('signupUsername')?.value || ''
-            }
-          : {
-              email: document.getElementById('loginEmail')?.value || '',
-              password: document.getElementById('loginPassword')?.value || ''
-            };
+        let payload;
+        if(isSignup){
+          const email = document.getElementById('signupEmail')?.value || '';
+          const password = document.getElementById('signupPassword')?.value || '';
+          const confirm = document.getElementById('signupConfirm')?.value || '';
+          const username = document.getElementById('signupUsername')?.value || '';
+          if(password !== confirm){
+            if(window.toast){ toast.error('Passwords do not match'); } else { alert('Passwords do not match'); }
+            return;
+          }
+          if(scorePassword(password) < 3){ if(window.toast){ toast.error('Password is too weak'); } else { alert('Password is too weak'); } return; }
+          payload = { email, password, username };
+        } else {
+          payload = {
+            email: document.getElementById('loginEmail')?.value || '',
+            password: document.getElementById('loginPassword')?.value || ''
+          };
+  }
         const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });

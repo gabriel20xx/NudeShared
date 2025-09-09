@@ -62,7 +62,9 @@
               <input id="signupEmail" type="email" class="auth-input" placeholder="you@example.com" autocomplete="email">
             </div>
             <div class="auth-field">
-              <label for="signupPassword">Password</label>
+              <label for="signupPassword">Password
+                <span aria-label="Password strength tips" title="Fair: 10+ characters, mix upper/lowercase, a number and a symbol. Strong: 14+ with variety." style="margin-left:.35rem; cursor:help; font-size:.85em; color:var(--color-text-dim);">ⓘ</span>
+              </label>
               <input id="signupPassword" type="password" class="auth-input" placeholder="Create a password" autocomplete="new-password">
             </div>
             <div class="auth-field password-strength" aria-live="polite">
@@ -74,9 +76,10 @@
             <div class="auth-field">
               <label for="signupConfirm">Confirm password</label>
               <input id="signupConfirm" type="password" class="auth-input" placeholder="Repeat password" autocomplete="new-password">
+              <small id="signupConfirmError" style="color:#e53935; display:none;">Passwords do not match</small>
             </div>
             <div class="auth-actions">
-              <button type="button" class="btn-info auth-submit" data-mode="signup">Create account</button>
+              <button type="button" class="btn-info auth-submit" data-mode="signup" disabled>Create account</button>
             </div>
           </form>
           <% } %>
