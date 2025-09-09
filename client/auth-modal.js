@@ -5,12 +5,10 @@
   if(!overlay || !openBtn) return;
 
   const closeBtn = overlay.querySelector('.auth-close');
-  const loginTab = overlay.querySelector('#authLoginTab');
-  const signupTab = overlay.querySelector('#authSignupTab');
   const loginPanel = overlay.querySelector('#authLoginPanel');
   const signupPanel = overlay.querySelector('#authSignupPanel');
+  const switchBtn = overlay.querySelector('#authSwitch');
   const submitBtns = overlay.querySelectorAll('.auth-submit');
-  const tabButtons = [loginTab, signupTab].filter(Boolean);
   const panels = [loginPanel, signupPanel].filter(Boolean);
   const pwInput = document.getElementById('signupPassword');
   const pwMeter = document.getElementById('signupPwMeter');
@@ -19,7 +17,7 @@
   const pwConfirmErr = document.getElementById('signupConfirmError');
 
   const STORAGE_KEY = 'authLoggedIn';
-  const LAST_TAB_KEY = 'authLastTab';
+  // Default view policy: always start with Login unless admin bootstrap (no admin exists)
 
   function isLoggedIn(){ return localStorage.getItem(STORAGE_KEY) === '1'; }
   function setLoggedIn(v){
@@ -29,7 +27,7 @@
   }
 
   function updateHeaderButton(){
-    const loginOnly = !signupTab || !signupPanel; // admin mode without signup
+    const loginOnly = !signupPanel; // admin mode without signup
     if(isLoggedIn()){
       openBtn.textContent = 'Log out';
       openBtn.setAttribute('aria-haspopup', 'false');
@@ -42,23 +40,27 @@
   }
 
   function activate(idx){
-    tabButtons.forEach((btn,i)=>{
-      if(!btn) return;
-      btn.classList.toggle('active', i===idx);
-      btn.setAttribute('aria-selected', String(i===idx));
-      if(i===idx){ try{ localStorage.setItem(LAST_TAB_KEY, String(idx)); }catch(_){} }
-    });
+    if (idx !== 0 && idx !== 1) idx = 0;
     panels.forEach((p,i)=>{
       if(!p) return;
       p.hidden = (i!==idx);
       p.setAttribute('aria-hidden', String(i!==idx));
     });
+    updateSwitchLabel();
   }
 
   function getInitialTabIdx(){
-    const saved = localStorage.getItem(LAST_TAB_KEY);
-    const n = Number(saved);
-    return Number.isFinite(n) && (n===0 || n===1) ? n : 0;
+    // If admin bootstrap is active, default to signup; otherwise, login
+    if (isBootstrapLocked && signupPanel) {
+      return panels.indexOf(signupPanel);
+    }
+    return 0;
+  }
+
+  function updateSwitchLabel(){
+    if(!switchBtn) return;
+    const loginVisible = loginPanel && !loginPanel.hidden;
+    switchBtn.textContent = loginVisible ? "Don't have an account? Sign up" : 'Already have an account? Log in';
   }
 
   function open(){
@@ -109,9 +111,18 @@
   overlay.addEventListener('click', (e)=>{ if(e.target === overlay && !isBootstrapLocked) close(); });
   window.addEventListener('keydown', (e)=>{ if(!overlay.hidden && e.key === 'Escape') close(); });
 
-  // Tabs
-  loginTab && loginTab.addEventListener('click', ()=> activate(0));
-  if(signupTab) signupTab.addEventListener('click', ()=> activate( panels.indexOf(signupPanel) ));
+  // Bottom switch instead of tabs
+  if(switchBtn && signupPanel){
+    if(isBootstrapLocked){ switchBtn.style.display = 'none'; }
+    switchBtn.addEventListener('click', ()=>{
+      const loginVisible = loginPanel && !loginPanel.hidden;
+      if(loginVisible){ activate( panels.indexOf(signupPanel) ); }
+      else { activate(0); }
+    });
+  } else if (switchBtn && !signupPanel) {
+    // No signup available
+    switchBtn.style.display = 'none';
+  }
 
   // Prevent form submission and call backend
   overlay.addEventListener('submit', (e)=> e.preventDefault());
