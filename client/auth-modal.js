@@ -105,10 +105,14 @@
   });
 
   // Close handlers
-  // Close logic disabled when bootstrap admin (modal element has data-admin-bootstrap) or close button absent
+  // Close logic disabled when bootstrap admin (modal element has data-admin-bootstrap).
+  // Additionally, if overlay has data-lock-close (set by NudeAdmin), backdrop click will not close.
   const isBootstrapLocked = !!overlay.querySelector('[data-admin-bootstrap]');
   if(closeBtn && !isBootstrapLocked){ closeBtn.addEventListener('click', close); }
-  overlay.addEventListener('click', (e)=>{ if(e.target === overlay && !isBootstrapLocked) close(); });
+  overlay.addEventListener('click', (e)=>{
+    const lockBackdrop = overlay.hasAttribute('data-lock-close');
+    if(e.target === overlay && !isBootstrapLocked && !lockBackdrop) close();
+  });
   window.addEventListener('keydown', (e)=>{ if(!overlay.hidden && e.key === 'Escape') close(); });
 
   // Bottom switch instead of tabs

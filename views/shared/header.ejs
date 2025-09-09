@@ -31,7 +31,7 @@
       </div>
     </header>
     <!-- Shared Auth Overlay -->
-    <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden>
+  <div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden <%= (typeof lockAuthClose !== 'undefined' && lockAuthClose) ? 'data-lock-close' : '' %>>
       <div class="auth-modal" role="document">
         <button class="auth-close" type="button" aria-label="Close">✕</button>
         <div class="auth-header">
