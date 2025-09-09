@@ -113,7 +113,12 @@
     const lockBackdrop = overlay.hasAttribute('data-lock-close');
     if(e.target === overlay && !isBootstrapLocked && !lockBackdrop) close();
   });
-  window.addEventListener('keydown', (e)=>{ if(!overlay.hidden && e.key === 'Escape') close(); });
+  window.addEventListener('keydown', (e)=>{
+    if(!overlay.hidden && e.key === 'Escape'){
+      const lockBackdrop = overlay.hasAttribute('data-lock-close');
+      if(!isBootstrapLocked && !lockBackdrop) close();
+    }
+  });
 
   // Bottom switch instead of tabs
   if(switchBtn && signupPanel){
@@ -130,6 +135,15 @@
 
   // Prevent form submission and call backend
   overlay.addEventListener('submit', (e)=> e.preventDefault());
+  // Enter key submits the visible panel (login or signup)
+  overlay.addEventListener('keydown', (e)=>{
+    if(e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.altKey){
+      const activePanel = panels.find(p=>p && !p.hidden);
+      if(!activePanel) return;
+      const modeBtn = activePanel.querySelector('.auth-submit');
+      if(modeBtn){ e.preventDefault(); modeBtn.click(); }
+    }
+  });
   // Password strength evaluation
   function scorePassword(p){
     if(!p) return 0;
