@@ -65,6 +65,12 @@
               <label for="signupPassword">Password</label>
               <input id="signupPassword" type="password" class="auth-input" placeholder="Create a password" autocomplete="new-password">
             </div>
+            <div class="auth-field password-strength" aria-live="polite">
+              <div class="pw-meter" id="signupPwMeter" data-score="0">
+                <span class="pw-bar"></span>
+              </div>
+              <small id="signupPwFeedback" class="pw-feedback text-dim">Enter a password</small>
+            </div>
             <div class="auth-field">
               <label for="signupConfirm">Confirm password</label>
               <input id="signupConfirm" type="password" class="auth-input" placeholder="Repeat password" autocomplete="new-password">

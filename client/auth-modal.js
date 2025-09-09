@@ -12,6 +12,9 @@
   const submitBtns = overlay.querySelectorAll('.auth-submit');
   const tabButtons = [loginTab, signupTab].filter(Boolean);
   const panels = [loginPanel, signupPanel].filter(Boolean);
+  const pwInput = document.getElementById('signupPassword');
+  const pwMeter = document.getElementById('signupPwMeter');
+  const pwFeedback = document.getElementById('signupPwFeedback');
 
   const STORAGE_KEY = 'authLoggedIn';
   const LAST_TAB_KEY = 'authLastTab';
@@ -98,8 +101,10 @@
   });
 
   // Close handlers
-  closeBtn && closeBtn.addEventListener('click', close);
-  overlay.addEventListener('click', (e)=>{ if(e.target === overlay) close(); });
+  // Close logic disabled when bootstrap admin (modal element has data-admin-bootstrap) or close button absent
+  const isBootstrapLocked = !!overlay.querySelector('[data-admin-bootstrap]');
+  if(closeBtn && !isBootstrapLocked){ closeBtn.addEventListener('click', close); }
+  overlay.addEventListener('click', (e)=>{ if(e.target === overlay && !isBootstrapLocked) close(); });
   window.addEventListener('keydown', (e)=>{ if(!overlay.hidden && e.key === 'Escape') close(); });
 
   // Tabs
@@ -108,24 +113,76 @@
 
   // Prevent form submission and call backend
   overlay.addEventListener('submit', (e)=> e.preventDefault());
+  // Password strength evaluation
+  function scorePassword(p){
+    if(!p) return 0;
+    let score = 0;
+    const length = p.length;
+    if(length >= 6) score += 1;
+    if(length >= 10) score += 1;
+    if(/[a-z]/.test(p) && /[A-Z]/.test(p)) score += 1;
+    if(/\d/.test(p)) score += 1;
+    if(/[^A-Za-z0-9]/.test(p)) score += 1;
+    if(length >= 14) score += 1;
+    return Math.min(score,5); // 0-5
+  }
+  function describeScore(s){
+    switch(s){
+      case 0: return 'Enter a password';
+      case 1: return 'Very weak';
+      case 2: return 'Weak';
+      case 3: return 'Fair';
+      case 4: return 'Good';
+      case 5: return 'Strong';
+      default: return '';
+    }
+  }
+  function updatePwStrength(){
+    if(!pwInput || !pwMeter || !pwFeedback) return;
+    const val = pwInput.value || '';
+    const s = scorePassword(val);
+    pwMeter.dataset.score = String(s);
+    pwFeedback.textContent = describeScore(s);
+    // Visual width & color via inline style (can be refined in CSS)
+    const bar = pwMeter.querySelector('.pw-bar');
+    if(bar){
+      const pct = (s/5)*100;
+      bar.style.width = pct + '%';
+      let color = '#d32f2f';
+      if(s>=2) color='#f57c00';
+      if(s>=3) color='#fbc02d';
+      if(s>=4) color='#388e3c';
+      if(s>=5) color='#2e7d32';
+      bar.style.background = color;
+    }
+  }
+  pwInput && pwInput.addEventListener('input', updatePwStrength);
+  updatePwStrength();
   submitBtns.forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const mode = btn.getAttribute('data-mode');
       try {
-  const isSignup = (mode === 'signup') && signupPanel;
-  const payload = (isSignup)
-          ? { email: document.getElementById('signupEmail')?.value || '', password: document.getElementById('signupPassword')?.value || '' }
-          : { email: document.getElementById('loginEmail')?.value || '', password: document.getElementById('loginPassword')?.value || '' };
-  const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
+        const isSignup = (mode === 'signup') && signupPanel;
+        const payload = (isSignup)
+          ? {
+              email: document.getElementById('signupEmail')?.value || '',
+              password: document.getElementById('signupPassword')?.value || '',
+              username: document.getElementById('signupUsername')?.value || ''
+            }
+          : {
+              email: document.getElementById('loginEmail')?.value || '',
+              password: document.getElementById('loginPassword')?.value || ''
+            };
+        const res = await fetch(`/auth/${isSignup ? 'signup' : 'login'}`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
         });
         const data = await res.json().catch(()=> ({}));
         if (!res.ok) throw new Error(data?.error || 'Request failed');
-  setLoggedIn(true); close();
-  try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
-  if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+        setLoggedIn(true);
+        if(!isBootstrapLocked) close(); // keep open only if locked? (bootstrap we redirect immediately)
+        try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
+        if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
       } catch (e) {
-        // No offline simulation: surface error and keep dialog open
         if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
       }
     });

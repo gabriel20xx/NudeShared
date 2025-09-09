@@ -18,7 +18,14 @@ function verifyPassword(password, stored) {
 
 function normalizeEmail(email){ return String(email || '').trim().toLowerCase(); }
 function normalizeUsername(name){
-  return String(name || '').trim().toLowerCase().replace(/[^a-z0-9_-]/g,'').slice(0,64);
+  return String(name || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g,'')
+    .replace(/_{2,}/g,'_')
+    .replace(/-{2,}/g,'-')
+    .replace(/^[_-]+|[_-]+$/g,'')
+    .slice(0,64);
 }
 function validEmail(email) { return /.+@.+\..+/.test(normalizeEmail(email)); }
 function validPassword(pw) { return String(pw || '').length >= 6; }
@@ -44,12 +51,28 @@ export function buildAuthRouter(Router, options = {}) {
   router.post('/signup', rlMiddleware, async (req, res) => {
     try {
       const { email, password } = req.body || {};
+      let { username } = req.body || {};
       const normalized = normalizeEmail(email);
       if (!validEmail(normalized) || !validPassword(password)) return res.status(400).json({ error: 'Invalid email or password too short (min 6)' });
 
       // Check existing email
       const { rows: existing } = await query('SELECT id FROM users WHERE email = $1', [normalized]);
       if (existing && existing.length) return res.status(409).json({ error: 'Email already registered' });
+
+      // Username handling (optional); auto-derive from email local part if absent
+      if (!username) {
+        username = normalized.split('@')[0];
+      }
+      username = normalizeUsername(username);
+      if (username) {
+        try {
+          const { rows: userExists } = await query('SELECT id FROM users WHERE lower(username)=lower($1)', [username]);
+          if (userExists && userExists.length) {
+            // Append random suffix
+            username = (username + '-' + Math.random().toString(36).slice(2,6)).slice(0,64);
+          }
+        } catch {}
+      }
 
       // Determine if any admin user exists
       let elevate = false;
@@ -65,10 +88,15 @@ export function buildAuthRouter(Router, options = {}) {
       }
 
       const password_hash = hashPassword(password);
-      const insertSql = elevate
-        ? 'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at'
-        : 'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at';
-      const params = elevate ? [normalized, password_hash, 'admin'] : [normalized, password_hash];
+      let insertSql;
+      let params;
+      if (elevate) {
+        insertSql = username ? 'INSERT INTO users (email, password_hash, role, username) VALUES ($1, $2, $3, $4) RETURNING id, email, role, created_at' : 'INSERT INTO users (email, password_hash, role) VALUES ($1, $2, $3) RETURNING id, email, role, created_at';
+        params = username ? [normalized, password_hash, 'admin', username] : [normalized, password_hash, 'admin'];
+      } else {
+        insertSql = username ? 'INSERT INTO users (email, password_hash, username) VALUES ($1, $2, $3) RETURNING id, email, role, created_at' : 'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at';
+        params = username ? [normalized, password_hash, username] : [normalized, password_hash];
+      }
       const { rows } = await query(insertSql, params);
       const user = sanitizeUserRow(rows[0]);
       req.session.user = user;
@@ -118,13 +146,29 @@ export function buildAuthRouter(Router, options = {}) {
 
   router.post('/login', rlMiddleware, async (req, res) => {
     try {
-      const { email, password } = req.body || {};
-      const normalized = normalizeEmail(email);
-      if (!validEmail(normalized) || !validPassword(password)) return res.status(400).json({ error: 'Invalid credentials' });
-  const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
-      if (!rows || rows.length === 0) return res.status(401).json({ error: 'Invalid credentials' });
-      const row = rows[0]; if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
-      const user = sanitizeUserRow(row); req.session.user = user; res.json({ user });
+      const { email: identifier, password } = req.body || {};
+      const raw = String(identifier || '').trim();
+      if (!validPassword(password)) return res.status(400).json({ error: 'Invalid credentials' });
+
+      let row;
+      if (raw.includes('@')) {
+        const normalized = normalizeEmail(raw);
+        if (!validEmail(normalized)) return res.status(400).json({ error: 'Invalid credentials' });
+        const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
+        if (rows && rows.length) row = rows[0];
+      } else {
+        const uname = normalizeUsername(raw);
+        if (!uname) return res.status(400).json({ error: 'Invalid credentials' });
+        try {
+          const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [uname]);
+          if (rows && rows.length) row = rows[0];
+        } catch {}
+      }
+      if (!row) return res.status(401).json({ error: 'Invalid credentials' });
+      if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
+      const user = sanitizeUserRow(row);
+      req.session.user = user;
+      res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Login error', e); res.status(500).json({ error: 'Login failed' }); }
   });
 
