@@ -92,14 +92,21 @@
         if (!r.ok || !j?.user) {
           // Session expired on server; clear local flag and open login modal
           setLoggedIn(false);
-          open();
+      // If running inside NudeAdmin, go to dashboard to trigger login page
+      const isAdminApp = !!document.querySelector('.admin-main');
+      if (isAdminApp) { window.location.replace('/dashboard'); return; }
+      open();
           return;
         }
       } catch {}
       try { await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); } catch {}
       setLoggedIn(false);
-      (window.toast ? toast.info('Logged out') : alert('Logged out'));
-      close();
+    (window.toast ? toast.info('Logged out') : alert('Logged out'));
+    // On NudeAdmin, redirect so the authGate serves the login window page
+    const isAdminApp = !!document.querySelector('.admin-main');
+    if (isAdminApp) { window.location.replace('/dashboard'); return; }
+    // For other apps, open the login modal immediately
+    open();
     } else {
       open();
     }
