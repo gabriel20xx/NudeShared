@@ -69,6 +69,7 @@ export async function runMigrations() {
   await ensureUsersTable();
   await ensureMediaTable();
   await ensureMediaLikeSaveTables();
+  await ensurePlaylistsTables();
   await ensureMediaViewDownloadTables();
   await ensureMediaMetricsTable();
   await ensureSettingsTable();
@@ -274,6 +275,62 @@ async function ensureMediaMetricsTable(){
     `);
     try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_created_idx ON media_metrics (created_at);`);} catch{}
     try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_key_idx ON media_metrics (media_key);`);} catch{}
+    return;
+  }
+}
+
+// Playlists tables: playlists and playlist_items
+async function ensurePlaylistsTables(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS playlists (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL,
+        name TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (user_id, name)
+      );
+      -- Case-insensitive uniqueness helper index
+      CREATE UNIQUE INDEX IF NOT EXISTS playlists_user_lowername_unique ON playlists (user_id, (lower(name)));
+      CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists (user_id);
+
+      CREATE TABLE IF NOT EXISTS playlist_items (
+        id BIGSERIAL PRIMARY KEY,
+        playlist_id BIGINT NOT NULL,
+        media_key TEXT NOT NULL,
+        position INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (playlist_id, media_key)
+      );
+      CREATE INDEX IF NOT EXISTS playlist_items_playlist_idx ON playlist_items (playlist_id);
+      CREATE INDEX IF NOT EXISTS playlist_items_media_key_idx ON playlist_items (media_key);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS playlists (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlists_user_lowername_unique ON playlists (user_id, lower(name));`); } catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists (user_id);`); } catch{}
+    await query(`
+      CREATE TABLE IF NOT EXISTS playlist_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        playlist_id INTEGER NOT NULL,
+        media_key TEXT NOT NULL,
+        position INTEGER,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlist_items_unique ON playlist_items (playlist_id, media_key);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_playlist_idx ON playlist_items (playlist_id);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_media_key_idx ON playlist_items (media_key);`);} catch{}
     return;
   }
 }

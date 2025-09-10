@@ -10,5 +10,6 @@ export * from './api/generationRoutes.js';
 export * from './api/adminMediaRoutes.js';
 export * from './api/adminSettingsRoutes.js';
 export * from './api/adminUsersRoutes.js';
+export * from './api/playlistsRoutes.js';
 export * from './media/sharedMediaService.js';
 
