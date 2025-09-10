@@ -525,6 +525,14 @@ html.no-scroll, body.no-scroll { overflow: hidden !important; }
 .auth-actions { display:flex; gap:.5rem; justify-content:center; margin-top:.4rem; }
 .auth-note { text-align:center; font-size:.75rem; margin: 0 0 1rem; }
 
+/* Auth password field toggle */
+.auth-input-wrap { position: relative; display: block; }
+.auth-input-wrap > .auth-input { padding-right: 2.2rem; }
+.pw-toggle { position: absolute; inset: 0.15rem 0.35rem auto auto; height: 30px; width: 30px; top: 50%; transform: translateY(-50%); display: inline-flex; align-items: center; justify-content: center; background: transparent; border: none; color: var(--color-text-dim); cursor: pointer; border-radius: var(--radius-sm); }
+.pw-toggle:hover { color: var(--color-text); background: var(--color-surface-alt); }
+.pw-toggle:focus-visible { outline: none; box-shadow: var(--color-focus-ring); }
+.pw-toggle i { pointer-events: none; font-size: .95rem; }
+
 /* Auth buttons unified look */
 .auth-submit {
     display: inline-flex;

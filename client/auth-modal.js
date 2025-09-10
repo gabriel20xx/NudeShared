@@ -253,6 +253,25 @@
     });
   });
 
+  // Password visibility toggles
+  overlay.querySelectorAll('.pw-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetId = btn.getAttribute('data-target');
+      const input = targetId ? overlay.querySelector('#' + CSS.escape(targetId)) : null;
+      if (!input) return;
+      const isPw = input.getAttribute('type') === 'password';
+      input.setAttribute('type', isPw ? 'text' : 'password');
+      // Swap icon
+      const icon = btn.querySelector('i');
+      if (icon) {
+        icon.classList.toggle('fa-eye');
+        icon.classList.toggle('fa-eye-slash');
+      }
+      // Keep focus on input
+      input.focus();
+    });
+  });
+
   // Initialize strictly
   overlay.hidden = true; updateHeaderButton(); activate(getInitialTabIdx());
   (async () => {
