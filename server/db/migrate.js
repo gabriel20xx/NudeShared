@@ -70,6 +70,7 @@ export async function runMigrations() {
   await ensureMediaTable();
   await ensureMediaLikeSaveTables();
   await ensureMediaViewDownloadTables();
+  await ensureMediaMetricsTable();
   await ensureSettingsTable();
   Logger.success(MODULE, 'Migrations complete');
 }
@@ -241,6 +242,38 @@ async function ensureSettingsTable(){
         updated_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
+    return;
+  }
+}
+
+async function ensureMediaMetricsTable(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_metrics (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT,
+        media_key TEXT NOT NULL,
+        elapsed_ms BIGINT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS media_metrics_created_idx ON media_metrics (created_at);
+      CREATE INDEX IF NOT EXISTS media_metrics_key_idx ON media_metrics (media_key);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_metrics (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        media_key TEXT NOT NULL,
+        elapsed_ms INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_created_idx ON media_metrics (created_at);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_key_idx ON media_metrics (media_key);`);} catch{}
     return;
   }
 }
