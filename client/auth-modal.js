@@ -50,10 +50,11 @@
   }
 
   function getInitialTabIdx(){
-    // If admin bootstrap is active, default to signup; otherwise, login
-    if (isBootstrapLocked && signupPanel) {
-      return panels.indexOf(signupPanel);
-    }
+    // If admin bootstrap is active, default to signup; otherwise, use any pre-shown panel, else login
+    const locked = overlay.querySelector('[data-admin-bootstrap]') != null;
+    if (locked && signupPanel) return panels.indexOf(signupPanel);
+    const preVisible = panels.findIndex(p => p && p.hidden === false);
+    if (preVisible >= 0) return preVisible;
     return 0;
   }
 
@@ -107,16 +108,16 @@
   // Close handlers
   // Close logic disabled when bootstrap admin (modal element has data-admin-bootstrap).
   // Additionally, if overlay has data-lock-close (set by NudeAdmin), backdrop click will not close.
-  const isBootstrapLocked = !!overlay.querySelector('[data-admin-bootstrap]');
-  if(closeBtn && !isBootstrapLocked){ closeBtn.addEventListener('click', close); }
+  function isBootstrapLocked(){ return overlay.querySelector('[data-admin-bootstrap]') != null; }
+  if(closeBtn){ closeBtn.addEventListener('click', ()=>{ if(!isBootstrapLocked()) close(); }); }
   overlay.addEventListener('click', (e)=>{
     const lockBackdrop = overlay.hasAttribute('data-lock-close');
-    if(e.target === overlay && !isBootstrapLocked && !lockBackdrop) close();
+    if(e.target === overlay && !isBootstrapLocked() && !lockBackdrop) close();
   });
   window.addEventListener('keydown', (e)=>{
     if(!overlay.hidden && e.key === 'Escape'){
       const lockBackdrop = overlay.hasAttribute('data-lock-close');
-      if(!isBootstrapLocked && !lockBackdrop) close();
+      if(!isBootstrapLocked() && !lockBackdrop) close();
     }
   });
 
@@ -163,7 +164,7 @@
       const data = await res.json().catch(()=> ({}));
       if (!res.ok) throw new Error(data?.error || 'Request failed');
       setLoggedIn(true);
-      if(!isBootstrapLocked) close();
+  if(!isBootstrapLocked()) close();
       try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
       if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
     } catch (e) {
