@@ -95,6 +95,10 @@ export async function initDb() {
 }
 
 export async function query(text, params) {
+  // Lazy init for test environments if not initialized
+  if (driver === 'none') {
+    try { await initDb(); } catch (_) {}
+  }
   if (driver === 'pg') return pool.query(text, params);
   if (driver === 'sqlite') {
     let sql = String(text || '');

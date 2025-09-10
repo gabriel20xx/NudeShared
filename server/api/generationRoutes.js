@@ -52,10 +52,17 @@ export function buildGenerationRouter(opts={}){
       const { prompt, steps, outputHeight, workflow: workflowNameRaw, saveNodeTarget, ...restSettings } = req.body;
       const initialQueueSize = getProcessingQueue().length;
       const createdIds = [];
-      let resolvedUserName = null; try { const sessUser=req.session?.user; if(sessUser?.id){ resolvedUserName = sessUser.username || (sessUser.email? sessUser.email.split('@')[0]: `user-${sessUser.id}`); } } catch {}
+      let resolvedUserName = null; try {
+        const sessUser=req.session?.user;
+        if(sessUser?.id){
+          resolvedUserName = sessUser.username || (sessUser.email? sessUser.email.split('@')[0]: `user-${sessUser.id}`);
+        } else {
+          resolvedUserName = 'Anonymous';
+        }
+      } catch { resolvedUserName = 'Anonymous'; }
       for(const f of files){
         const uploadedFilename = f.filename; const originalFilename=f.originalname; const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename); const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2); createdIds.push(requestId);
-        getRequestStatus()[requestId] = { status:'pending', totalNodesInWorkflow:0, originalFilename, uploadedFilename, settings:{ prompt, steps, outputHeight, ...restSettings }, workflowName: workflowNameRaw, userId:req.session?.user?.id || null, userName: resolvedUserName, saveNodeTarget: saveNodeTarget || null };
+  getRequestStatus()[requestId] = { status:'pending', totalNodesInWorkflow:0, originalFilename, uploadedFilename, settings:{ prompt, steps, outputHeight, ...restSettings }, workflowName: workflowNameRaw, userId:(req.session?.user?.id || null), userName: resolvedUserName, saveNodeTarget: saveNodeTarget || null };
         getProcessingQueue().push({ requestId, uploadedFilename, originalFilename, uploadedPathForComfyUI, workflowName: workflowNameRaw, userId:req.session?.user?.id || null, userName: resolvedUserName, saveNodeTarget: saveNodeTarget || null });
       }
       if(process.env.SKIP_QUEUE_PROCESSING!=='true') processQueue(req.app.get('io'));

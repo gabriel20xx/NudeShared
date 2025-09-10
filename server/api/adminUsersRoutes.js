@@ -1,4 +1,5 @@
 import express from 'express';
+import crypto from 'crypto';
 import { query, getDriver } from '../db/db.js';
 
 function defaultUtils(){
@@ -12,6 +13,26 @@ export function buildAdminUsersRouter(options={}) {
   const ensureAuth = requireAuth || ((req,res,next)=> req.session?.user?.id ? next() : res.status(401).json({ success:false, error:'Not authenticated'}));
   const ensureAdmin = requireAdmin || ((req,res,next)=>{ const u=req.session?.user; if(!u|| (u.role!=='admin' && u.role!=='superadmin')) return res.status(403).json({ success:false,error:'Forbidden'}); next(); });
   const driver = getDriver();
+
+  // Helpers (mirror auth behavior)
+  function normalizeEmail(email){ return String(email || '').trim().toLowerCase(); }
+  function normalizeUsername(name){
+    const s = String(name || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g,'')
+      .replace(/_{2,}/g,'_')
+      .replace(/-{2,}/g,'-')
+      .replace(/^[_-]+|[_-]+$/g,'')
+      .slice(0,64);
+    return s;
+  }
+  function validEmail(email) { return /.+@.+\..+/.test(normalizeEmail(email)); }
+  function validPassword(pw) { return String(pw || '').length >= 6; }
+  function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+    const hash = crypto.pbkdf2Sync(password, salt, 100000, 32, 'sha256').toString('hex');
+    return `${salt}:${hash}`;
+  }
 
   // Users list with search filter
   router.get(`${basePath}/users`, ensureAuth, ensureAdmin, async (req,res)=>{
@@ -48,6 +69,40 @@ export function buildAdminUsersRouter(options={}) {
       }));
       res.json({ success:true, users: out });
     }catch(e){ U.errorLog?.('ADMIN_USERS','list', e); res.status(500).json({ success:false, error:'Failed to list users'}); }
+  });
+
+  // Create a new user (admin-only)
+  router.post(`${basePath}/users/create`, ensureAuth, ensureAdmin, async (req,res)=>{
+    try {
+      let { email, username, password, role } = req.body || {};
+      email = normalizeEmail(email);
+  username = normalizeUsername(username);
+  if (username && username.toLowerCase() === 'anonymous') return res.status(400).json({ success:false, error:'Username not allowed' });
+      role = (role||'user').toString().trim();
+      if(!validEmail(email)) return res.status(400).json({ success:false, error:'Invalid email' });
+      if(!validPassword(password)) return res.status(400).json({ success:false, error:'Password too short (min 6)' });
+      // Enforce role whitelist
+      const allowedRoles = new Set(['user','moderator','admin','superadmin']);
+      if(!allowedRoles.has(role)) role = 'user';
+      // Unique checks
+      const { rows: existE } = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
+      if(existE && existE.length) return res.status(409).json({ success:false, error:'Email already registered' });
+      if(username){
+        try {
+          const { rows: existU } = await query('SELECT id FROM users WHERE lower(username)=lower($1) LIMIT 1', [username]);
+          if(existU && existU.length) return res.status(409).json({ success:false, error:'Username already in use' });
+        } catch {}
+      }
+      const password_hash = hashPassword(password);
+      // Build insert dynamically to support optional username
+      if(username){
+        const { rows } = await query('INSERT INTO users (email, password_hash, role, username) VALUES ($1,$2,$3,$4) RETURNING id,email,role,created_at', [email, password_hash, role, username]);
+        return res.json({ success:true, user: rows?.[0] || null });
+      } else {
+        const { rows } = await query('INSERT INTO users (email, password_hash, role) VALUES ($1,$2,$3) RETURNING id,email,role,created_at', [email, password_hash, role]);
+        return res.json({ success:true, user: rows?.[0] || null });
+      }
+    } catch(e){ U.errorLog?.('ADMIN_USERS','create', e); return res.status(500).json({ success:false, error:'Create failed' }); }
   });
 
   // Update a single user's fields (username/email/role)

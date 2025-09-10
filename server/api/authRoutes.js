@@ -64,9 +64,12 @@ export function buildAuthRouter(Router, options = {}) {
         username = normalized.split('@')[0];
       }
       username = normalizeUsername(username);
+      if (username && username.toLowerCase() === 'anonymous') {
+        return res.status(400).json({ error: 'Username not allowed' });
+      }
       if (username) {
         try {
-          const { rows: userExists } = await query('SELECT id FROM users WHERE lower(username)=lower($1)', [username]);
+    const { rows: userExists } = await query('SELECT id FROM users WHERE lower(username)=lower($1)', [username]);
           if (userExists && userExists.length) {
             // Append random suffix
             username = (username + '-' + Math.random().toString(36).slice(2,6)).slice(0,64);

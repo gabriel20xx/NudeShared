@@ -15,25 +15,31 @@ export function buildAdminMediaRouter(options={}) {
   // Media listing with optional category & search filters
   router.get(`${basePath}/media`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
+      const driver = getDriver();
       const cat = (req.query.category||'').toString().trim();
       const search = (req.query.search||'').toString().trim().toLowerCase();
       const params=[]; const where=[];
       if(cat){
-        if(getDriver()==='pg'){ params.push(cat); where.push(`category = $${params.length}`); }
+        if(driver==='pg'){ params.push(cat); where.push(`category = $${params.length}`); }
         else { params.push(cat); where.push('category = ?'); }
       }
       if(search){
-        if(getDriver()==='pg'){
+        if(driver==='pg'){
           const term = `%${search}%`; params.push(term); params.push(term); where.push(`(lower(title) LIKE $${params.length-1} OR lower(media_key) LIKE $${params.length})`);
         } else {
           const term = `%${search}%`; params.push(term, term); where.push('(lower(title) LIKE ? OR lower(media_key) LIKE ?)');
         }
       }
+      // Build a driver-specific expression to get the part of the email before '@'
+      const emailLocalExpr = driver==='pg'
+        ? "split_part(u.email,'@',1)"
+        : "CASE WHEN instr(u.email,'@')>1 THEN substr(u.email,1,instr(u.email,'@')-1) ELSE '' END";
+
       let sql = `SELECT m.id, m.media_key as "mediaKey", m.user_id as "userId", m.category, m.title, m.active, m.created_at as "createdAt",
-        u.username as "generatorUsername", u.email as "generatorEmail"
+        COALESCE(NULLIF(u.username,''), NULLIF(${emailLocalExpr},'')) as "generatorUsername", u.email as "generatorEmail"
         FROM media m LEFT JOIN users u ON u.id = m.user_id`;
       if(where.length) sql += ' WHERE ' + where.join(' AND ');
-      sql += ' ORDER BY created_at DESC LIMIT 500';
+  sql += ' ORDER BY m.created_at DESC LIMIT 500';
       const r = await query(sql, params);
       res.json({ success:true, media: r.rows });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','list', e); res.status(500).json({ success:false,error:'Failed to list media'}); }

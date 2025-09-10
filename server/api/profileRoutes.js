@@ -65,7 +65,11 @@ export function buildProfileRouter(options={}){
       const uid = req.session.user.id;
       const { username, email, bio } = req.body||{};
       const fields=[]; const values=[];
-      if(typeof username==='string'){ fields.push('username'); values.push(username.trim()); }
+      if(typeof username==='string'){
+        const nu = (username||'').trim();
+        if(nu.toLowerCase()==='anonymous') return res.status(400).json(U.createErrorResponse('Username not allowed'));
+        fields.push('username'); values.push(nu);
+      }
       if(typeof bio==='string'){ fields.push('bio'); values.push(bio.trim()); }
       if(typeof email==='string'){
         const e = normEmail(email); if(!validEmail(e)) return res.status(400).json(U.createErrorResponse('Invalid email'));
