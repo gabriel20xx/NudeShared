@@ -48,6 +48,16 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
       return res.json(U.createSuccessResponse({ savedByUser: save===true }, 'Save updated'));
     }catch(e){ U.errorLog?.('MEDIA','save','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
+  // Optional: record a media view event (called by front-ends like NudeFlow)
+  router.post('/media/view', async (req,res)=>{
+    try {
+      const uid = req.session?.user?.id || null;
+      const key = String(req.body?.mediaKey || req.query?.mediaKey || '').trim();
+      if(!key) return res.status(400).json(U.createErrorResponse('Missing mediaKey'));
+      await query('INSERT INTO media_views (user_id, media_key, app) VALUES ($1,$2,$3)', [uid, key, req.headers['x-app']||null]);
+      return res.json(U.createSuccessResponse({ ok:true }, 'View recorded'));
+    } catch(e){ U.errorLog?.('MEDIA','view','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  });
   router.get('/media/saved', ensureAuth, async (req,res)=>{
     try {
       const uid = req.session.user.id;

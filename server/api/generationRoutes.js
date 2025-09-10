@@ -2,6 +2,7 @@
 import express from 'express';
 import path from 'path';
 import archiver from 'archiver';
+import { query as dbQuery } from '../db/db.js';
 
 export function buildGenerationRouter(opts={}){
   const { queue, uploads, config, utils } = opts;
@@ -59,7 +60,7 @@ export function buildGenerationRouter(opts={}){
       }
       if(process.env.SKIP_QUEUE_PROCESSING!=='true') processQueue(req.app.get('io'));
       const firstRequestId = createdIds[0];
-      res.status(202).json({ success:true, message:`${createdIds.length} item(s) queued`, requestId:firstRequestId, requestIds:createdIds, queueSize:getProcessingQueue().length, yourPosition: initialQueueSize + 1 });
+  res.status(202).json({ success:true, message:`${createdIds.length} item(s) queued`, queued: createdIds.length, requestId:firstRequestId, requestIds:createdIds, queueSize:getProcessingQueue().length, yourPosition: initialQueueSize + 1 });
     }catch(e){ res.status(500).json({ success:false, error:'Upload failed', detail:e.message }); }
   });
 
@@ -69,7 +70,21 @@ export function buildGenerationRouter(opts={}){
   });
 
   router.get('/download/:requestId', async (req,res)=>{
-    try { const requestId = req.params.requestId; const data = getRequestStatus()[requestId]; if(!data || data.status!=='completed') return res.status(404).send('Not ready'); if(!data.data?.outputImage) return res.status(404).send('Output missing'); const outputRelativePath = data.data.outputImage; const outputFilename = path.basename(outputRelativePath); const outDir = OUTPUT_DIR || path.resolve(process.cwd(),'output'); const abs = path.join(outDir, outputFilename); res.setHeader('Content-Disposition', `attachment; filename="${outputFilename}"`); res.sendFile(abs); } catch(e){ res.status(500).send('Download error'); }
+    try {
+      const requestId = req.params.requestId;
+      const data = getRequestStatus()[requestId];
+      if(!data || data.status!=='completed') return res.status(404).send('Not ready');
+      if(!data.data?.outputImage) return res.status(404).send('Output missing');
+      const outputRelativePath = data.data.outputImage;
+      const mediaKey = path.basename(outputRelativePath);
+      // Record download
+      try{ await dbQuery('INSERT INTO media_downloads (user_id, media_key, app) VALUES ($1,$2,$3)', [req.session?.user?.id||null, mediaKey, 'NudeForge']); } catch{}
+      const outputFilename = path.basename(outputRelativePath);
+      const outDir = OUTPUT_DIR || path.resolve(process.cwd(),'output');
+      const abs = path.join(outDir, outputFilename);
+      res.setHeader('Content-Disposition', `attachment; filename="${outputFilename}"`);
+      res.sendFile(abs);
+    } catch(e){ res.status(500).send('Download error'); }
   });
 
   router.get('/download-zip', async (req,res)=>{

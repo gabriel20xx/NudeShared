@@ -69,6 +69,7 @@ export async function runMigrations() {
   await ensureUsersTable();
   await ensureMediaTable();
   await ensureMediaLikeSaveTables();
+  await ensureMediaViewDownloadTables();
   await ensureSettingsTable();
   Logger.success(MODULE, 'Migrations complete');
 }
@@ -117,6 +118,59 @@ async function ensureMediaLikeSaveTables() {
       );
     `);
     await query(`CREATE INDEX IF NOT EXISTS media_saves_key_idx ON media_saves (media_key);`);
+    return;
+  }
+}
+
+async function ensureMediaViewDownloadTables(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_views (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS media_views_key_idx ON media_views (media_key);
+      CREATE INDEX IF NOT EXISTS media_views_user_idx ON media_views (user_id);
+      
+      CREATE TABLE IF NOT EXISTS media_downloads (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS media_downloads_key_idx ON media_downloads (media_key);
+      CREATE INDEX IF NOT EXISTS media_downloads_user_idx ON media_downloads (user_id);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_views (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_views_key_idx ON media_views (media_key);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS media_views_user_idx ON media_views (user_id);`);} catch{}
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_downloads (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        media_key TEXT NOT NULL,
+        app TEXT,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_key_idx ON media_downloads (media_key);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_user_idx ON media_downloads (user_id);`);} catch{}
     return;
   }
 }
