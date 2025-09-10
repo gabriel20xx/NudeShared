@@ -1,0 +1,72 @@
+<% /* Safe defaults for options */
+   const disableSignupSafe = (typeof disableSignup !== 'undefined') ? disableSignup : false; %>
+<div id="authOverlay" class="auth-overlay" role="dialog" aria-modal="true" aria-labelledby="authTitle" hidden <%= (typeof lockAuthClose !== 'undefined' && lockAuthClose) ? 'data-lock-close' : '' %>>
+  <div class="auth-modal" role="document">
+    <button class="auth-close" type="button" aria-label="Close">✕</button>
+    <div class="auth-header">
+      <h2 id="authTitle" class="auth-title">Welcome</h2>
+    </div>
+    <div class="auth-body">
+      <form id="authLoginPanel" class="auth-form" role="tabpanel" aria-labelledby="authTitle">
+        <div class="auth-field">
+          <label for="loginEmail">Email or Username</label>
+          <input id="loginEmail" type="text" class="auth-input" placeholder="you@example.com or yourname" autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label for="loginPassword">Password</label>
+          <div class="auth-input-wrap">
+            <input id="loginPassword" type="password" class="auth-input" placeholder="••••••••" autocomplete="current-password">
+            <button type="button" class="pw-toggle" aria-label="Show password" data-target="loginPassword" title="Show/Hide password"><i class="fa fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-actions">
+          <button type="button" class="btn-success-solid auth-submit" data-mode="login">Log in</button>
+        </div>
+      </form>
+      <% if (!disableSignupSafe) { %>
+      <form id="authSignupPanel" class="auth-form" role="tabpanel" aria-labelledby="authTitle" hidden>
+        <div class="auth-field">
+          <label for="signupEmail">Email</label>
+          <input id="signupEmail" type="email" class="auth-input" placeholder="you@example.com" autocomplete="email">
+        </div>
+        <div class="auth-field">
+          <label for="signupUsername">Username</label>
+          <input id="signupUsername" type="text" class="auth-input" placeholder="yourname" autocomplete="username">
+        </div>
+        <div class="auth-field">
+          <label for="signupPassword">Password
+            <span aria-label="Password strength tips" title="Fair: 10+ characters, mix upper/lowercase, a number and a symbol. Strong: 14+ with variety." style="margin-left:.35rem; cursor:help; font-size:.85em; color:var(--color-text-dim);">ⓘ</span>
+          </label>
+          <div class="auth-input-wrap">
+            <input id="signupPassword" type="password" class="auth-input" placeholder="Create a password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" aria-label="Show password" data-target="signupPassword" title="Show/Hide password"><i class="fa fa-eye"></i></button>
+          </div>
+        </div>
+        <div class="auth-field password-strength" aria-live="polite">
+          <div class="pw-meter" id="signupPwMeter" data-score="0">
+            <span class="pw-bar"></span>
+          </div>
+          <small id="signupPwFeedback" class="pw-feedback text-dim">Enter a password</small>
+        </div>
+        <div class="auth-field">
+          <label for="signupConfirm">Confirm password</label>
+          <div class="auth-input-wrap">
+            <input id="signupConfirm" type="password" class="auth-input" placeholder="Repeat password" autocomplete="new-password">
+            <button type="button" class="pw-toggle" aria-label="Show password" data-target="signupConfirm" title="Show/Hide password"><i class="fa fa-eye"></i></button>
+          </div>
+          <small id="signupConfirmError" style="color:#e53935; display:none;">Passwords do not match</small>
+        </div>
+        <div class="auth-actions">
+          <button type="button" class="btn-info auth-submit" data-mode="signup" disabled>Create account</button>
+        </div>
+      </form>
+      <% } %>
+      <% if (!disableSignupSafe) { %>
+      <div class="auth-switch">
+        <button type="button" id="authSwitch" class="linklike" style="background:none;border:none;color:var(--color-accent);cursor:pointer;padding:.25rem .15rem;">Don't have an account? Sign up</button>
+      </div>
+      <% } %>
+    </div>
+    <p class="auth-note text-dim">Use a test email; passwords are stored hashed.</p>
+  </div>
+</div>
