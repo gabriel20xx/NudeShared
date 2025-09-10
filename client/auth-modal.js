@@ -130,7 +130,7 @@
 
   // Bottom switch instead of tabs
   if(switchBtn && signupPanel){
-    if(isBootstrapLocked){ switchBtn.style.display = 'none'; }
+    if(isBootstrapLocked()){ switchBtn.style.display = 'none'; }
     switchBtn.addEventListener('click', ()=>{
       const loginVisible = loginPanel && !loginPanel.hidden;
       if(loginVisible){ activate( panels.indexOf(signupPanel) ); }
