@@ -12,9 +12,12 @@ import { fetchStats } from './utils/statsSeed.mjs';
  */
 
  test('admin stats metrics avg/min/max generation times', async () => {
-  await ensureTestDb();
+  // Isolated DB so avg/min/max reflect only seeded rows
+  await ensureTestDb({ memory: true, fresh: true });
   const { server, url: base } = await startEphemeral(adminApp);
   try {
+    // Ensure a clean slate for deterministic metrics (remove any rows from prior tests)
+    try { await query('DELETE FROM media_metrics'); } catch {}
   const admin = await createAdminUser(base, { email: 'metrics_admin_'+Date.now()+'@ex.com', password:'pw12345' });
     // Seed media + metrics manually. We only need rows in media (to satisfy FKs if any) and media_metrics
   const now = new Date().toISOString();
