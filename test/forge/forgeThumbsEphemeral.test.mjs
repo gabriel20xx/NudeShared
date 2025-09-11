@@ -4,12 +4,13 @@ import { startEphemeral } from '../utils/serverHelpers.mjs';
 import { app as forgeApp } from '../../../NudeForge/src/app.js';
 import fs from 'fs';
 import path from 'path';
+import { OUTPUT_DIR } from '../../../NudeForge/src/config/config.js';
 
 // Ensures when FORGE_PERSIST_THUMBS not set (default false) thumbnails are served with no-store and not cached to disk
 test('forge output thumbnail served in-memory when persistence disabled', async () => {
   await ensureTestDb();
-  // Prepare a temporary output file
-  const outDir = path.resolve(process.cwd(), 'output');
+  // Prepare a temporary output file in the actual Forge OUTPUT_DIR
+  const outDir = OUTPUT_DIR;
   await fs.promises.mkdir(outDir, { recursive: true });
   const sample = path.join(outDir, 'ephemeral_sample.png');
   // tiny 1x1 png
