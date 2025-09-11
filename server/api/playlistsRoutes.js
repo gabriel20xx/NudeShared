@@ -1,5 +1,5 @@
 import express from 'express';
-import { query } from '../db/db.js';
+import { query, getDriver } from '../db/db.js';
 
 function defaultUtils(){
   return { createSuccessResponse:(data,m='OK')=>({success:true,data,message:m}), createErrorResponse:(e,c='ERR')=>({success:false,error:e,code:c}), debugLog:()=>{}, errorLog:()=>{} };
@@ -169,8 +169,17 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       const { rows: chk } = await query('SELECT id FROM playlists WHERE id=$1 AND user_id=$2',[id, uid]);
       if(!chk || chk.length===0) return res.status(404).json(U.createErrorResponse('Not found'));
       // Validate that all provided items belong to this playlist
-      const { rows: have } = await query('SELECT id FROM playlist_items WHERE playlist_id=$1 AND id = ANY($2::int[])',[id, items]);
-      const haveIds = new Set((have||[]).map(r=>Number(r.id)));
+      let haveIds = new Set();
+      if (getDriver() === 'pg') {
+        const { rows: have } = await query('SELECT id FROM playlist_items WHERE playlist_id=$1 AND id = ANY($2::int[])',[id, items]);
+        haveIds = new Set((have||[]).map(r=>Number(r.id)));
+      } else {
+        if (items.length) {
+          const placeholders = items.map(()=>'?').join(',');
+          const { rows: have } = await query(`SELECT id FROM playlist_items WHERE playlist_id=? AND id IN (${placeholders})`, [id, ...items]);
+          haveIds = new Set((have||[]).map(r=>Number(r.id)));
+        }
+      }
       for (const it of items){ if (!haveIds.has(it)) return res.status(400).json(U.createErrorResponse('Invalid item in list')); }
       // Assign positions based on array order starting from 0
       for (let i=0;i<items.length;i++){
