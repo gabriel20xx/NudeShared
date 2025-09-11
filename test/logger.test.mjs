@@ -1,16 +1,11 @@
-import assert from 'assert';
+import { describe, test, expect } from 'vitest';
 import Logger from '../server/logger/serverLogger.js';
 
-// Basic format & levels sanity check
-const sample = Logger.format('Test', 'info', 'hello', { a: 1 });
-assert.ok(sample.includes('[INFO') || sample.includes('[info'), 'level tag');
-assert.ok(sample.includes('[TEST'), 'module tag uppercased');
-assert.ok(sample.includes('hello'), 'message included');
-
-Logger.debug('Test', 'debug message');
-Logger.info('Test', 'info message');
-Logger.warn('Test', 'warn message');
-Logger.error('Test', 'error message');
-Logger.success('Test', 'success message');
-
-console.log('NudeShared logger test passed');
+describe('Logger basic formatting', () => {
+	test('format includes level, module, message', () => {
+		const sample = Logger.format('Test', 'info', 'hello', { a:1 });
+		expect(/\[INFO|\[info/i.test(sample)).toBe(true);
+		expect(sample.includes('[TEST')).toBe(true);
+		expect(sample.includes('hello')).toBe(true);
+	});
+});

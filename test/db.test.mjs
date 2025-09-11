@@ -1,6 +1,6 @@
-import assert from 'assert';
+import { describe, test, expect, beforeAll, afterAll } from 'vitest';
 import { initDb, query, closeDb, getDriver } from '../server/db/db.js';
-import { runMigrations } from '../server/db/migrate.js';
+import { ensureTestDb } from './utils/testDb.mjs';
 
 async function tableExists(name){
   const driver = getDriver();
@@ -15,23 +15,18 @@ async function tableExists(name){
   throw new Error('No driver');
 }
 
-export async function run(){
-  // Force SQLite by clearing PG env for this test
+describe('DB migrations + basic CRUD', () => {
+  beforeAll(async () => {
   delete process.env.DATABASE_URL; delete process.env.PGHOST; delete process.env.PGDATABASE;
-  process.env.SQLITE_PATH = ':memory:';
-  const { driver } = await initDb();
-  assert.ok(driver === 'sqlite' || driver === 'pg', 'driver initialized');
-  await runMigrations();
-  assert.ok(await tableExists('users'), 'users table exists');
-  // insert and read back
-  const email = 'test@example.com';
-  const { rows: ins } = await query('INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id, email', [email, 'x:y']);
-  assert.equal(ins[0].email, email);
-  const { rows } = await query('SELECT email FROM users WHERE email=$1', [email]);
-  assert.equal(rows[0].email, email);
-  await closeDb();
-}
-
-if (import.meta.url === `file://${process.argv[1]}`) {
-  run().then(()=>{ console.log('db test passed'); }).catch((e)=>{ console.error(e); process.exit(1); });
-}
+  await ensureTestDb({ memory: true, fresh: true });
+  });
+  afterAll(async () => { await closeDb(); });
+  test('users table exists & insert/select works', async () => {
+    expect(await tableExists('users')).toBe(true);
+    const email='test@example.com';
+    const { rows: ins } = await query('INSERT INTO users (email, password_hash) VALUES ($1,$2) RETURNING id,email', [email,'x:y']);
+    expect(ins[0].email).toBe(email);
+    const { rows } = await query('SELECT email FROM users WHERE email=$1', [email]);
+    expect(rows[0].email).toBe(email);
+  });
+});

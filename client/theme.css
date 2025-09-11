@@ -344,6 +344,12 @@ html, body { text-align: center; }
 .ui-select:hover { background: var(--color-surface-alt); }
 :root[data-theme='light'] .ui-select { background: #ffffff; }
 
+/* Dropdown icon wrapper */
+.ui-select-wrapper { position:relative; display:inline-block; }
+.ui-select-wrapper .ui-select { padding-right: 2.1rem; }
+.ui-select-wrapper::after { content:'\f107'; /* fa-chevron-down */ font-family:'Font Awesome 6 Free'; font-weight:900; position:absolute; top:50%; right:.75rem; transform:translateY(-50%); pointer-events:none; color:var(--color-text-dim); font-size:.8rem; }
+.ui-select-wrapper:focus-within::after { color: var(--color-accent); }
+
 :root[data-theme='light'] {
     --color-bg: #f7f9fb;
     --color-bg-alt: #eef1f5;

@@ -64,8 +64,16 @@ async function ensureUsersTable() {
   throw new Error('No database driver available for migrations');
 }
 
+let migrationsLogged = false;
 export async function runMigrations() {
-  Logger.info(MODULE, 'Running database migrations...');
+  if (process.env.SILENCE_MIGRATION_LOGS === 'true') {
+    if (!migrationsLogged) {
+      Logger.info(MODULE, 'Running database migrations (logging suppressed for subsequent calls)...');
+      migrationsLogged = true;
+    }
+  } else {
+    Logger.info(MODULE, 'Running database migrations...');
+  }
   await ensureUsersTable();
   await ensureMediaTable();
   await ensureMediaLikeSaveTables();
@@ -73,7 +81,9 @@ export async function runMigrations() {
   await ensureMediaViewDownloadTables();
   await ensureMediaMetricsTable();
   await ensureSettingsTable();
-  Logger.success(MODULE, 'Migrations complete');
+  if (!(process.env.SILENCE_MIGRATION_LOGS === 'true')) {
+    Logger.success(MODULE, 'Migrations complete');
+  }
 }
 
 async function ensureMediaLikeSaveTables() {

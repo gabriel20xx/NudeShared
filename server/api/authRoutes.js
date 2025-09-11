@@ -100,8 +100,10 @@ export function buildAuthRouter(Router, options = {}) {
         insertSql = username ? 'INSERT INTO users (email, password_hash, username) VALUES ($1, $2, $3) RETURNING id, email, role, created_at' : 'INSERT INTO users (email, password_hash) VALUES ($1, $2) RETURNING id, email, role, created_at';
         params = username ? [normalized, password_hash, username] : [normalized, password_hash];
       }
-      const { rows } = await query(insertSql, params);
-      const user = sanitizeUserRow(rows[0]);
+  const { rows } = await query(insertSql, params);
+  const user = sanitizeUserRow(rows[0]);
+  // Invalidate any external admin presence caches by emitting a lightweight global hint
+  try { process.emit && process.emit('nudeplatform:first-admin-created'); } catch {}
       req.session.user = user;
       res.json({ user, elevated: elevate });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }

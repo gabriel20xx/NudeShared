@@ -102,3 +102,29 @@ If you want to guarantee stability in production:
 
 ---
 Maintained by: gabriel20xx
+
+## Centralized Test Suite (Important)
+
+All automated tests for NudeAdmin, NudeFlow, and NudeForge have been consolidated here under `NudeShared/test/`.
+
+Add every new test (even if it targets an Admin/Flow/Forge route) inside this directory. Spin up the specific app within the test file when needed. Shared utilities now live at:
+
+- `test/utils/httpClient.mjs` – JSON & raw HTTP helpers.
+- `test/utils/factories.mjs` – user/admin creation & promotion helpers.
+- `test/utils/binaryClient.mjs` – binary, streaming, async iterator + backpressure simulation.
+
+Dedicated backpressure validation: `backpressure.test.mjs` ensures the async iterator wrapper correctly slices and delays streaming responses.
+
+Do not recreate per-app `test/` folders going forward; this prevents divergence and encourages reuse.
+
+### Running the unified suite
+
+From the monorepo root (where `vitest.config.mjs` lives):
+
+```
+pnpm vitest run
+# or
+npm run test --workspace=nudeadmin
+```
+
+Coverage combines sources from Admin, Flow, Forge, and Shared. Set `ENABLE_REAL_SHARP=1` to temporarily enable real image processing in a focused test.

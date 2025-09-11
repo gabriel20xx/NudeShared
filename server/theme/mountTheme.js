@@ -12,10 +12,19 @@ export function mountTheme(app, opts = {}) {
   const sharedDir = opts.sharedDir || path.resolve(projectDir, '..', 'NudeShared');
   const logger = opts.logger || { info:()=>{}, warn:()=>{}, error:()=>{} };
 
+  // In test environment, de-duplicate noisy repeated mount logs (multiple apps)
+  if (typeof globalThis.__NUDE_THEME_LOGGED === 'undefined') {
+    Object.defineProperty(globalThis, '__NUDE_THEME_LOGGED', { value: new Set(), writable: false });
+  }
+
   const localCandidate = path.join(projectDir, 'public', 'css', 'theme.css');
   if (fs.existsSync(localCandidate)) {
     app.get('/assets/theme.css', (req, res) => res.sendFile(localCandidate));
-    logger.info?.('[theme] Mounted local theme.css', { path: localCandidate });
+    const already = globalThis.__NUDE_THEME_LOGGED.has(localCandidate);
+    if (!already) {
+      logger.info?.('[theme] Mounted local theme.css', { path: localCandidate });
+      globalThis.__NUDE_THEME_LOGGED.add(localCandidate);
+    }
     return;
   }
   const candidates = [
@@ -25,7 +34,11 @@ export function mountTheme(app, opts = {}) {
   const found = candidates.find(p => fs.existsSync(p));
   if (found) {
     app.get('/assets/theme.css', (req, res) => res.sendFile(found));
-    logger.info?.('[theme] Mounted shared theme.css', { path: found });
+    const already = globalThis.__NUDE_THEME_LOGGED.has(found);
+    if (!already) {
+      logger.info?.('[theme] Mounted shared theme.css', { path: found });
+      globalThis.__NUDE_THEME_LOGGED.add(found);
+    }
   } else {
     logger.warn?.('[theme] theme.css not found (local or shared). /assets/theme.css will 404');
   }

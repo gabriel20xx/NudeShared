@@ -173,7 +173,10 @@
       setLoggedIn(true);
   if(!isBootstrapLocked()) close();
       try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
-      if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+  if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+  // If inside admin app, always redirect to dashboard after login
+  const isAdminApp = !!document.querySelector('.admin-main');
+  if(isAdminApp){ window.location.replace('/dashboard'); }
     } catch (e) {
       if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
     }
@@ -276,5 +279,31 @@
   overlay.hidden = true; updateHeaderButton(); activate(getInitialTabIdx());
   (async () => {
     try { const r = await fetch('/auth/me'); if (r.ok) { const j = await r.json(); if (j && j.user) setLoggedIn(true); } } catch {}
+    // Admin bootstrap detection: if no admin exists, force signup path and lock close (attribute already set server-side via disableSignup flag logic)
+    try {
+      const r2 = await fetch('/auth/bootstrap/admin-needed');
+      if(r2.ok){
+        const j2 = await r2.json().catch(()=>({}));
+        if(j2 && j2.adminNeeded){
+          // If signup panel exists, show it and hide switch; mark bootstrap attribute for lock logic
+          const modalEl = overlay.querySelector('.auth-modal');
+          if(modalEl) modalEl.setAttribute('data-admin-bootstrap','');
+          if(signupPanel){ signupPanel.hidden = false; signupPanel.setAttribute('aria-hidden','false'); }
+          if(loginPanel){ loginPanel.hidden = true; loginPanel.setAttribute('aria-hidden','true'); }
+          if(switchBtn){ switchBtn.style.display='none'; }
+          const note = overlay.querySelector('.auth-note'); if(note){ note.textContent='Create the first admin account (required).'; }
+          // Auto-open modal when landing on a protected admin page (auth-required layout ensures header present)
+          setTimeout(()=>{ if(overlay.hidden) open(); }, 30);
+        } else {
+          // Normal admin mode (signup removed if disableSignup was set server-side, else just update note)
+          const note = overlay.querySelector('.auth-note');
+          if(note && !signupPanel){ note.textContent='Sign up disabled for admin panel.'; }
+        }
+      }
+    } catch {}
+    // If we are on auth-required page in admin and not logged in, open modal automatically
+    if(document.getElementById('authRequiredPanel') && !isLoggedIn()){
+      setTimeout(()=>{ if(overlay.hidden) open(); }, 50);
+    }
   })();
 })();
