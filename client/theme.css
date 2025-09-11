@@ -238,6 +238,12 @@ html, body { text-align: center; }
     background: var(--color-danger-hover)
 }
 
+/* Count badge (shared) */
+.badge { display:inline-block; padding:.15rem .5rem; background:var(--color-surface-alt); border:1px solid var(--color-border); border-radius:var(--radius-pill); font-size:.6rem; font-weight:600; letter-spacing:.5px; line-height:1; color:var(--color-text); box-shadow:var(--shadow-sm); }
+.badge.red { background: var(--color-danger-strong); border-color: var(--color-danger-strong); color:#fff; }
+.badge.green { background: var(--color-success-strong); border-color: var(--color-success-strong); color:#fff; }
+.badge.accent { background: var(--color-accent); border-color: var(--color-accent); color:#23272f; }
+
 .border-dashed-accent {
     border: var(--border-dashed-accent)
 }
