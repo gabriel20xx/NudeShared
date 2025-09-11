@@ -31,7 +31,9 @@ async function scanMedia(){
     }
     if(tempCats.size>0) tempCats.add('all');
     mediaCache=tempMedia; categoriesCache=Array.from(tempCats).map(name=>({name,displayName:name}));
-  } catch {}
+  } catch (e) {
+    // Non-fatal: failing to pre-create directories should not block startup
+  }
 }
 
 export async function initializeSharedMediaService(){ if(initialized) return; await scanMedia(); if(process.env.NODE_ENV!=='test'){ setInterval(scanMedia, MEDIA_SCAN_INTERVAL); } initialized=true; }

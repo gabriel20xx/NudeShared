@@ -53,7 +53,9 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
             const info = mapMediaKeyToInfo(prev[0].media_key);
             preview = info.thumbnail;
           }
-        } catch {}
+        } catch (e) {
+          // Ignore preview fetch failures
+        }
         out.push({ id: row.id, name: row.name, item_count: Number(row.item_count||0), preview });
       }
       return res.json(U.createSuccessResponse({ playlists: out }, 'Playlists summary'));

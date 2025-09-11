@@ -39,7 +39,7 @@ export function buildProfileRouter(options={}){
 
   // Avatar storage
   const avatarsDir = customAvatarsDir || path.resolve(process.cwd(), 'avatars');
-  try { fs.mkdirSync(avatarsDir,{recursive:true}); } catch {}
+  try { fs.mkdirSync(avatarsDir,{recursive:true}); } catch (e) { /* ignore mkdir race */ }
   const storage = multer.diskStorage({
     destination: (req,file,cb)=> cb(null, avatarsDir),
     filename: (req,file,cb)=>{ const ext = path.extname(file.originalname||'')||'.png'; cb(null, `u${req.session?.user?.id||'anon'}_${Date.now()}${ext}`); }

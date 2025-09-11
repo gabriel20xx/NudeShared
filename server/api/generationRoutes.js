@@ -1,5 +1,7 @@
 // Generation / queue router builder (extracted from NudeForge)
 import express from 'express';
+import crypto from 'crypto';
+import fs from 'fs';
 import path from 'path';
 import archiver from 'archiver';
 import { query as dbQuery } from '../db/db.js';
@@ -59,7 +61,7 @@ export function buildGenerationRouter(opts={}){
         } else {
           resolvedUserName = 'Anonymous';
         }
-      } catch { resolvedUserName = 'Anonymous'; }
+      } catch (e) { /* default to Anonymous */ resolvedUserName = 'Anonymous'; }
       for(const f of files){
         const uploadedFilename = f.filename; const originalFilename=f.originalname; const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename); const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2); createdIds.push(requestId);
   getRequestStatus()[requestId] = { status:'pending', totalNodesInWorkflow:0, originalFilename, uploadedFilename, settings:{ prompt, steps, outputHeight, ...restSettings }, workflowName: workflowNameRaw, userId:(req.session?.user?.id || null), userName: resolvedUserName, saveNodeTarget: saveNodeTarget || null };
@@ -73,6 +75,7 @@ export function buildGenerationRouter(opts={}){
 
   router.post('/upload-copy', uploadCopy.single('image'), (req,res)=>{
     if(!req.file) return res.status(400).json({ success:false, error:'No file uploaded'});
+    // return filename so client can update persisted preview source to /copy/<filename>
     res.json({ success:true, filename:req.file.filename });
   });
 
@@ -85,7 +88,9 @@ export function buildGenerationRouter(opts={}){
       const outputRelativePath = data.data.outputImage;
       const mediaKey = path.basename(outputRelativePath);
       // Record download
-      try{ await dbQuery('INSERT INTO media_downloads (user_id, media_key, app) VALUES ($1,$2,$3)', [req.session?.user?.id||null, mediaKey, 'NudeForge']); } catch{}
+      try{ await dbQuery('INSERT INTO media_downloads (user_id, media_key, app) VALUES ($1,$2,$3)', [req.session?.user?.id||null, mediaKey, 'NudeForge']); } catch (e) {
+        // Non-fatal metrics insert failure
+      }
       const outputFilename = path.basename(outputRelativePath);
       const outDir = OUTPUT_DIR || path.resolve(process.cwd(),'output');
       const abs = path.join(outDir, outputFilename);
@@ -95,7 +100,7 @@ export function buildGenerationRouter(opts={}){
   });
 
   router.get('/download-zip', async (req,res)=>{
-    try { let files=req.query.files; if(!files) return res.status(400).send('No files'); if(!Array.isArray(files)) files=[files]; const outDir=OUTPUT_DIR || path.resolve(process.cwd(),'output'); const safe=[]; for(const f of files){ const base=path.basename(f); if(base!==f) continue; if(!/\.(png|jpg|jpeg|webp|gif)$/i.test(base)) continue; const abs=path.join(outDir, base); try { await fs.promises.access(abs); safe.push({base,abs}); } catch {} } if(!safe.length) return res.status(404).send('No valid files'); const zipName = safe.length===1? `${path.parse(safe[0].base).name}.zip` : `outputs-${safe.length}.zip`; res.setHeader('Content-Type','application/zip'); res.setHeader('Content-Disposition',`attachment; filename="${zipName}"`); const archive=archiver('zip',{zlib:{level:9}}); archive.on('error',err=>{ try{res.status(500).end();}catch{} }); archive.pipe(res); for(const {base,abs} of safe) archive.file(abs,{name:base}); await archive.finalize(); } catch(e){ try{ res.status(500).send('ZIP error'); }catch{} }
+    try { let files=req.query.files; if(!files) return res.status(400).send('No files'); if(!Array.isArray(files)) files=[files]; const outDir=OUTPUT_DIR || path.resolve(process.cwd(),'output'); const safe=[]; for(const f of files){ const base=path.basename(f); if(base!==f) continue; if(!/\.(png|jpg|jpeg|webp|gif)$/i.test(base)) continue; const abs=path.join(outDir, base); try { await fs.promises.access(abs); safe.push({base,abs}); } catch (e) { /* ignore missing */ } } if(!safe.length) return res.status(404).send('No valid files'); const zipName = safe.length===1? `${path.parse(safe[0].base).name}.zip` : `outputs-${safe.length}.zip`; res.setHeader('Content-Type','application/zip'); res.setHeader('Content-Disposition',`attachment; filename="${zipName}"`); const archive=archiver('zip',{zlib:{level:9}}); archive.on('error',err=>{ try{res.status(500).end();}catch(e2){ /* ignore response end errors */ } }); archive.pipe(res); for(const {base,abs} of safe) archive.file(abs,{name:base}); await archive.finalize(); } catch(e){ try{ res.status(500).send('ZIP error'); }catch(e2){ /* ignore */ } }
   });
 
   return router;

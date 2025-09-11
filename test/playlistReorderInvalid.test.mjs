@@ -4,7 +4,7 @@ import { createApp } from '../../NudeFlow/src/app.js';
 import http from 'http';
 
 function requestJSON(options, body){
-  return new Promise((resolve, reject)=>{ const req = http.request(options, res=>{ let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ let j=null; try{ j=JSON.parse(d||'{}'); }catch{} resolve({ status:res.statusCode, json:j, text:d, headers: res.headers }); }); }); req.on('error', reject); if(body) req.write(body); req.end(); });
+  return new Promise((resolve, reject)=>{ const req = http.request(options, res=>{ let d=''; res.on('data',c=>d+=c); res.on('end',()=>{ let j=null; try{ j=JSON.parse(d||'{}'); }catch(e){ /* tolerate */ } resolve({ status:res.statusCode, json:j, text:d, headers: res.headers }); }); }); req.on('error', reject); if(body) req.write(body); req.end(); });
 }
 const cookieHeader = jar => jar.join('; ');
 function storeCookies(jar, headers){ const set = headers['set-cookie']; if(!set) return; const arr = Array.isArray(set)? set:[set]; for(const c of arr){ const semi=c.split(';')[0]; const [name]=semi.split('='); const idx=jar.findIndex(x=>x.startsWith(name+'=')); if(idx>=0) jar[idx]=semi; else jar.push(semi);} }

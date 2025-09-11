@@ -1,5 +1,11 @@
 import express from 'express';
 import { query, getDriver } from '../db/db.js';
+import { ensureTableReady } from '../readiness/tableReadiness.js';
+
+// Backwards shim (keep name for existing imports/tests) – delegates to central helper
+async function ensureSettingsReady(log){
+  return ensureTableReady('settings', { attempts:10, delayMs:100, log: (mod,msg)=>{ try { log?.(mod||'ADMIN_SETTINGS', msg); } catch {} } });
+}
 
 function defaultUtils(){
   return { success:(d,m='OK')=>({success:true,data:d,message:m}), error:(e)=>({success:false,error:e}), infoLog:()=>{}, errorLog:()=>{} };
@@ -15,6 +21,10 @@ export function buildAdminSettingsRouter(options={}){
   // GET settings
   router.get(`${basePath}/settings`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      const ready = await ensureSettingsReady(U.infoLog);
+      if(!ready){
+        return res.status(503).json({ success:false,error:'Settings not ready' });
+      }
       const r = await query('SELECT key,value FROM settings');
       const out={}; for(const row of r.rows) out[row.key] = row.value;
       res.json({ success:true, settings: out });
@@ -42,7 +52,9 @@ export function buildAdminSettingsRouter(options={}){
       res.json({ success:true, updated: entries.length });
     } catch(e){
       U.errorLog?.('ADMIN_SETTINGS','set', e?.message || e);
-      try { console.error('ADMIN_SETTINGS set error', e); } catch {}
+      try { console.error('ADMIN_SETTINGS set error', e); } catch (logErr) {
+        // Swallow secondary logging failure
+      }
       res.status(500).json({ success:false,error:'Failed to update settings'});
     }
   });

@@ -13,3 +13,7 @@ export * from './api/adminUsersRoutes.js';
 export * from './api/playlistsRoutes.js';
 export * from './media/sharedMediaService.js';
 
+// HTTP helpers
+export * from './http/sharedStatic.js';
+export * from './http/cachePolicyEndpoint.js';
+

@@ -5,13 +5,12 @@ import { fileURLToPath } from 'url';
 import fs from 'fs';
 let BetterSqlite3;
 async function loadPackage(name) {
-  try { return await import(name); }
-  catch (_) {
-    try {
-      const { createRequire } = await import('module');
-      const req = createRequire(path.join(process.cwd(), 'package.json'));
-      return req(name);
-    } catch (e2) { throw e2; }
+  try {
+    return await import(name);
+  } catch (importErr) {
+      const { createRequire } = await import('module'); // Import error handling
+    const req = createRequire(path.join(process.cwd(), 'package.json'));
+    return req(name);
   }
 }
 
@@ -59,7 +58,7 @@ export async function initDb() {
       Logger.success(MODULE, 'Connected to PostgreSQL');
       return { driver };
     } catch (err) {
-      Logger.error(MODULE, 'PostgreSQL connection failed, attempting SQLite fallback', err);
+        Logger.error(MODULE, 'PostgreSQL connection failed, attempting SQLite fallback', err); // Connection error handling
     }
   }
   try {
@@ -73,7 +72,9 @@ export async function initDb() {
   const defaultPath = path.join(repoRoot, 'database', 'dbfile.db');
     const sqlitePath = process.env.SQLITE_PATH || defaultPath;
     const dir = path.dirname(sqlitePath);
-    try { fs.mkdirSync(dir, { recursive: true }); } catch {}
+    try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {
+      // Ignore mkdir race conditions
+    }
     // Proactively create the file when using a regular filesystem path
     try {
       if (sqlitePath !== ':memory:' && !/^file:/i.test(sqlitePath)) {
@@ -81,7 +82,9 @@ export async function initDb() {
           fs.closeSync(fs.openSync(sqlitePath, 'a'));
         }
       }
-    } catch {}
+    } catch (e) {
+      // Swallow close errors during shutdown
+    }
     sqliteDb = new BetterSqlite3(sqlitePath);
     sqliteDb.pragma('journal_mode = WAL');
     driver = 'sqlite';
@@ -89,7 +92,7 @@ export async function initDb() {
     return { driver };
   } catch (err) {
     driver = 'none';
-    Logger.error(MODULE, 'Failed to initialize SQLite fallback', err);
+      Logger.error(MODULE, 'Failed to initialize SQLite fallback', err); // SQLite initialization error handling
     throw err;
   }
 }
@@ -97,7 +100,8 @@ export async function initDb() {
 export async function query(text, params) {
   // Lazy init for test environments if not initialized
   if (driver === 'none') {
-    try { await initDb(); } catch (_) {}
+    // Attempt initialization; bubble up error if it fails
+    await initDb();
   }
   if (driver === 'pg') return pool.query(text, params);
   if (driver === 'sqlite') {
@@ -113,16 +117,9 @@ export async function query(text, params) {
     }
     // Handle statements with RETURNING by fetching the resulting row(s)
     if (/\bRETURNING\b/i.test(sql)) {
-      // Many RETURNING uses return a single row; use get() for simplicity
-      try {
-        const row = stmt.get(...args);
-        const rows = row ? [row] : [];
-        return { rows };
-      } catch (_) {
-        // Fallback: run then no rows
-        const info = stmt.run(...args);
-        return { rows: [], changes: info.changes ?? 0, lastID: info.lastInsertRowid };
-      }
+      const row = stmt.get(...args);
+      const rows = row ? [row] : [];
+      return { rows };
     }
     const info = stmt.run(...args);
     return { rows: [], changes: info.changes ?? 0, lastID: info.lastInsertRowid };

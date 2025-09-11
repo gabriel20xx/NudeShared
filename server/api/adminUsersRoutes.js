@@ -106,7 +106,9 @@ export function buildAdminUsersRouter(options={}) {
         try {
           const { rows: existU } = await query('SELECT id FROM users WHERE lower(username)=lower($1) LIMIT 1', [username]);
           if(existU && existU.length) return res.status(409).json({ success:false, error:'Username already in use' });
-        } catch {}
+        } catch (e) {
+          // Non-fatal: uniqueness check failed, proceed to insertion which will error if truly duplicate
+        }
       }
       const password_hash = hashPassword(password);
       // Build insert dynamically to support optional username

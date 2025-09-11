@@ -6,7 +6,7 @@ import http from 'http';
 function requestJSON(options, body){
   return new Promise((resolve, reject)=>{
     const req = http.request(options, res=>{
-      let data=''; res.on('data',c=>data+=c); res.on('end',()=>{ let json=null; try{ json=JSON.parse(data||'{}'); }catch{} resolve({ status:res.statusCode, json, headers: res.headers }); });
+  let data=''; res.on('data',c=>data+=c); res.on('end',()=>{ let json=null; try{ json=JSON.parse(data||'{}'); }catch(e){ /* tolerate */ } resolve({ status:res.statusCode, json, headers: res.headers }); });
     });
     req.on('error', reject); if(body) req.write(body); req.end();
   });

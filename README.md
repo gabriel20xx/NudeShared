@@ -97,6 +97,64 @@ If you want to guarantee stability in production:
 - Provide additional shared utilities (validation, response formatting, constants).
 - Add automated tests for db/auth flows.
 
+## Shared HTTP Helpers (Static + Cache Policy)
+
+Two server helpers eliminate duplicated logic across NudeForge, NudeFlow, and NudeAdmin:
+
+### `mountSharedStatic(app, { candidates, logger })`
+Mounts a chain of candidate directories at `/shared` with unified caching headers.
+
+Caching tiers:
+- CSS / JS: `public, max-age=3600`
+- Images (png/jpg/gif/webp/svg): `public, max-age=86400, stale-while-revalidate=604800`
+
+It registers every candidate (even if it does not exist) to preserve prior fallback semantics; the first existing directory is logged. Default candidate ordering can be produced by:
+
+```js
+import { defaultSharedCandidates, mountSharedStatic } from '../../NudeShared/server/index.js';
+mountSharedStatic(app, { candidates: defaultSharedCandidates(__dirname), logger });
+```
+
+Environment override: set `NUDESHARED_DIR` to force the first lookup path (e.g. container deployments).
+
+### `registerCachePolicyEndpoint(app, { service, getPolicies, note })`
+Adds a standardized `GET /__cache-policy` endpoint with:
+- Strong ETag emission (reports app's configured ETag style)
+- 60 req/min/IP in-memory rate limiting
+- Optional auth gating via `REQUIRE_CACHE_POLICY_AUTH=true` (returns 404 when gated & unauthenticated)
+
+Example usage:
+```js
+registerCachePolicyEndpoint(app, {
+	service: 'NudeFlow',
+	getPolicies: () => ({
+		shared: { cssJs: 'public, max-age=3600', images: 'public, max-age=86400, stale-while-revalidate=604800' },
+		themeCss: 'public, max-age=3600'
+	}),
+	note: 'Adjust in NudeFlow/src/app.js when modifying static caching.'
+});
+```
+
+Returned JSON shape:
+```jsonc
+{
+	"etag": "strong",          // Express etag setting
+	"service": "NudeFlow",      // Service label you passed
+	"policies": { /* your object */ },
+	"note": "..."                // Optional note
+}
+```
+
+### When to Extend
+If you add more asset classes (e.g., fonts) or want immutable hashed bundles, extend `mountSharedStatic` or layer another static mount before it. Keep cache policy docs in each service aligned with what `getPolicies()` returns.
+
+### Testing
+Helper unit tests live in `test/httpHelpers.test.mjs` covering:
+- Candidate resolution & mounting log message
+- Cache policy endpoint shape & rate limiting overflow (429 after >60 rapid hits)
+
+Feel free to expand with integration cases when adding new tiers.
+
 ## License
 (Insert license info here if required.)
 

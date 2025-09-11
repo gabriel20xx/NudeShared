@@ -2,6 +2,7 @@ import express from 'express';
 import fs from 'fs';
 import path from 'path';
 import { query } from '../db/db.js';
+import { ensureTableReady } from '../readiness/tableReadiness.js';
 
 function defaultUtils(){
   return { createSuccessResponse:(data,m='OK')=>({success:true,data,message:m}), createErrorResponse:(e,c='ERR')=>({success:false,error:e,code:c}), debugLog:()=>{}, errorLog:()=>{} };
@@ -15,6 +16,9 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
 
   router.get('/media/state', async (req,res)=>{
     try {
+      // Ensure media-related tables are ready (media_likes, media_saves) before querying
+      await ensureTableReady('media_likes', { attempts:5, delayMs:50 });
+      await ensureTableReady('media_saves', { attempts:5, delayMs:50 });
       const uid = req.session?.user?.id || null;
       const key = String(req.query?.mediaKey || '').trim();
       if(!key) return res.status(400).json(U.createErrorResponse('Missing mediaKey'));
@@ -31,6 +35,7 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
   });
   router.post('/media/like', ensureAuth, async (req,res)=>{
     try {
+      await ensureTableReady('media_likes', { attempts:5, delayMs:50 });
       const uid = req.session.user.id; const { mediaKey, like } = req.body||{}; const key = String(mediaKey||'').trim();
       if(!key) return res.status(400).json(U.createErrorResponse('Missing mediaKey'));
       if(like===true){ await query('INSERT INTO media_likes (user_id, media_key) VALUES ($1,$2) ON CONFLICT DO NOTHING',[uid,key]); }
@@ -41,6 +46,7 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
   });
   router.post('/media/save', ensureAuth, async (req,res)=>{
     try {
+      await ensureTableReady('media_saves', { attempts:5, delayMs:50 });
       const uid = req.session.user.id; const { mediaKey, save } = req.body||{}; const key = String(mediaKey||'').trim();
       if(!key) return res.status(400).json(U.createErrorResponse('Missing mediaKey'));
       if(save===true){ await query('INSERT INTO media_saves (user_id, media_key) VALUES ($1,$2) ON CONFLICT DO NOTHING',[uid,key]); }
@@ -91,7 +97,7 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
       };
       const items = (rows||[]).map(r=> mapRow(r.media_key));
       return res.json(U.createSuccessResponse({ items }, 'Saved list'));
-    }catch(e){ U.errorLog?.('MEDIA','saved','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+    } catch(e){ U.errorLog?.('MEDIA','saved','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
   return router;
 }
@@ -135,8 +141,8 @@ export function buildMediaLibraryRouter(options={}){
   if(outputDir){
     router.get('/library-images', async (req,res)=>{
       try {
-        const folderParam = (req.query.folder||'').toString();
-        const baseDir = (()=>{ if(!folderParam) return outputDir; const norm= path.normalize(folderParam).replace(/^\.+[\\\/]?/,''); const candidate= path.join(outputDir, norm); const rel= path.relative(outputDir, candidate); if(rel.startsWith('..')|| path.isAbsolute(rel)) return outputDir; return candidate; })();
+  const folderParam = (req.query.folder||'').toString();
+  const baseDir = (()=>{ if(!folderParam) return outputDir; const norm= path.normalize(folderParam).replace(/^\.+[\\/]?/,''); const candidate= path.join(outputDir, norm); const rel= path.relative(outputDir, candidate); if(rel.startsWith('..')|| path.isAbsolute(rel)) return outputDir; return candidate; })();
         const entries = await fs.promises.readdir(baseDir,{ withFileTypes:true });
         const files = entries.filter(d=>d.isFile() && !d.name.startsWith('.')).map(d=>d.name);
         const images = files.filter(f=>/\.(png|jpg|jpeg|gif|webp)$/i.test(f))
@@ -150,8 +156,8 @@ export function buildMediaLibraryRouter(options={}){
     });
     router.get('/library-folders', async (req,res)=>{
       try {
-        const dirParam = (req.query.folder||'').toString();
-        const targetDir = (()=>{ if(!dirParam) return outputDir; const norm= path.normalize(dirParam).replace(/^\.+[\\\/]?/,''); const candidate= path.join(outputDir, norm); const rel= path.relative(outputDir, candidate); if(rel.startsWith('..')|| path.isAbsolute(rel)) return outputDir; return candidate; })();
+  const dirParam = (req.query.folder||'').toString();
+  const targetDir = (()=>{ if(!dirParam) return outputDir; const norm= path.normalize(dirParam).replace(/^\.+[\\/]?/,''); const candidate= path.join(outputDir, norm); const rel= path.relative(outputDir, candidate); if(rel.startsWith('..')|| path.isAbsolute(rel)) return outputDir; return candidate; })();
         const entries = await fs.promises.readdir(targetDir,{ withFileTypes:true });
         const subdirs = entries.filter(e=>e.isDirectory() && !e.name.startsWith('.')).map(e=>e.name);
         const results = [];

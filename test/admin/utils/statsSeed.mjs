@@ -3,7 +3,7 @@ import { query } from '../../../server/db/db.js';
 export async function fetchStats(base, cookie, qs=''){ 
   const url = new URL('/api/admin/stats' + (qs?('?'+qs):''), base); 
   const res = await fetch(url, { headers:{ Cookie: cookie } });
-  const text = await res.text(); let json=null; try { json=JSON.parse(text); } catch {}
+  const text = await res.text(); let json=null; try { json=JSON.parse(text); } catch (e) { /* tolerate non-JSON */ }
   return { res, json }; 
 }
 
