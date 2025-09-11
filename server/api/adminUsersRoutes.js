@@ -56,16 +56,31 @@ export function buildAdminUsersRouter(options={}) {
       const likeSql = `SELECT user_id as id, COUNT(1) as cnt FROM media_likes WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
       const saveSql = `SELECT user_id as id, COUNT(1) as cnt FROM media_saves WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
       const genSql  = `SELECT user_id as id, COUNT(1) as cnt FROM media WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
-      const [likes, saves, gens] = await Promise.all([
-        query(likeSql, ids), query(saveSql, ids), query(genSql, ids)
+      // Playlists per user
+      const plSql = `SELECT user_id as id, COUNT(1) as cnt FROM playlists WHERE user_id IN (${driver==='pg'?inPg:inLite}) GROUP BY user_id`;
+      // Total playlist items (images) per user
+      const pliSql = driver==='pg'
+        ? `SELECT p.user_id as id, COUNT(i.id) as cnt
+           FROM playlists p LEFT JOIN playlist_items i ON i.playlist_id = p.id
+           WHERE p.user_id IN (${inPg}) GROUP BY p.user_id`
+        : `SELECT p.user_id as id, COUNT(i.id) as cnt
+           FROM playlists p LEFT JOIN playlist_items i ON i.playlist_id = p.id
+           WHERE p.user_id IN (${inLite}) GROUP BY p.user_id`;
+      const [likes, saves, gens, pls, plis] = await Promise.all([
+        query(likeSql, ids), query(saveSql, ids), query(genSql, ids), query(plSql, ids), query(pliSql, ids)
       ]);
       const lmap = Object.fromEntries((likes.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
       const smap = Object.fromEntries((saves.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
       const gmap = Object.fromEntries((gens.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
+      const pmap = Object.fromEntries((pls.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
+      const pimMap = Object.fromEntries((plis.rows||[]).map(r=>[Number(r.id), Number(r.cnt)]));
       const out = users.map(u=>({ ...u,
         likedCount: lmap[u.id]||0,
+        // savedCount retained in API for backwards compatibility, but UI will switch to playlists
         savedCount: smap[u.id]||0,
-        generatedCount: gmap[u.id]||0
+        generatedCount: gmap[u.id]||0,
+        playlistsCount: pmap[u.id]||0,
+        playlistImagesCount: pimMap[u.id]||0
       }));
       res.json({ success:true, users: out });
     }catch(e){ U.errorLog?.('ADMIN_USERS','list', e); res.status(500).json({ success:false, error:'Failed to list users'}); }
