@@ -58,6 +58,18 @@ export function buildMediaInteractionRouter(utils = defaultUtils()){
       return res.json(U.createSuccessResponse({ ok:true }, 'View recorded'));
     } catch(e){ U.errorLog?.('MEDIA','view','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
+  // Record a view session with explicit duration (ms)
+  router.post('/media/view-session', async (req,res)=>{
+    try {
+      const uid = req.session?.user?.id || null;
+      const key = String(req.body?.mediaKey || '').trim();
+      const duration = Number(req.body?.durationMs || req.body?.duration || 0);
+      if(!key) return res.status(400).json(U.createErrorResponse('Missing mediaKey'));
+      if(!(duration > 0)) return res.status(400).json(U.createErrorResponse('Invalid duration'));
+      await query('INSERT INTO media_view_sessions (user_id, media_key, duration_ms) VALUES ($1,$2,$3)', [uid, key, duration]);
+      return res.json(U.createSuccessResponse({ ok:true }, 'View session recorded'));
+    } catch(e){ U.errorLog?.('MEDIA','view-session','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  });
   router.get('/media/saved', ensureAuth, async (req,res)=>{
     try {
       const uid = req.session.user.id;

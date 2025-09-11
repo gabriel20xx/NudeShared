@@ -80,6 +80,7 @@ export async function runMigrations() {
   await ensurePlaylistsTables();
   await ensureMediaViewDownloadTables();
   await ensureMediaMetricsTable();
+  await ensureMediaViewSessionsTable();
   await ensureSettingsTable();
   if (!(process.env.SILENCE_MIGRATION_LOGS === 'true')) {
     Logger.success(MODULE, 'Migrations complete');
@@ -183,6 +184,38 @@ async function ensureMediaViewDownloadTables(){
     `);
     try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_key_idx ON media_downloads (media_key);`);} catch{}
     try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_user_idx ON media_downloads (user_id);`);} catch{}
+    return;
+  }
+}
+
+async function ensureMediaViewSessionsTable(){
+  const driver = getDriver();
+  if(driver === 'pg') {
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_view_sessions (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT,
+        media_key TEXT NOT NULL,
+        duration_ms BIGINT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS media_view_sessions_key_idx ON media_view_sessions (media_key);
+      CREATE INDEX IF NOT EXISTS media_view_sessions_user_idx ON media_view_sessions (user_id);
+    `);
+    return;
+  }
+  if(driver === 'sqlite') {
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_view_sessions (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER,
+        media_key TEXT NOT NULL,
+        duration_ms INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_key_idx ON media_view_sessions (media_key);`);} catch{}
+    try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_user_idx ON media_view_sessions (user_id);`);} catch{}
     return;
   }
 }

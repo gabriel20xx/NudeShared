@@ -117,6 +117,18 @@ html, body { text-align: center; }
     color: var(--color-info) !important
 }
 
+/* Themed select (used for NudeForge library dropdown) */
+.themed-select {
+    background: var(--color-input-bg);
+    border: 1px solid var(--color-border);
+    color: var(--color-text);
+    padding: .35rem .6rem;
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-sm);
+}
+.themed-select:focus { outline: 2px solid var(--color-accent-glow); border-color: var(--color-accent-glow); box-shadow: var(--shadow-focus-soft); }
+:root[data-theme='light'] .themed-select { background:#f2f5f8; color:#1b232b; border-color:#c7d0db; }
+
 .m-0 {
     margin: 0 !important
 }
