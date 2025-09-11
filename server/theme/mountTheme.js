@@ -19,7 +19,10 @@ export function mountTheme(app, opts = {}) {
 
   const localCandidate = path.join(projectDir, 'public', 'css', 'theme.css');
   if (fs.existsSync(localCandidate)) {
-    app.get('/assets/theme.css', (req, res) => res.sendFile(localCandidate));
+    app.get('/assets/theme.css', (req, res) => {
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.sendFile(localCandidate);
+    });
     const already = globalThis.__NUDE_THEME_LOGGED.has(localCandidate);
     if (!already) {
       logger.info?.('[theme] Mounted local theme.css', { path: localCandidate });
@@ -33,7 +36,10 @@ export function mountTheme(app, opts = {}) {
   ];
   const found = candidates.find(p => fs.existsSync(p));
   if (found) {
-    app.get('/assets/theme.css', (req, res) => res.sendFile(found));
+    app.get('/assets/theme.css', (req, res) => {
+      res.set('Cache-Control', 'public, max-age=3600');
+      res.sendFile(found);
+    });
     const already = globalThis.__NUDE_THEME_LOGGED.has(found);
     if (!already) {
       logger.info?.('[theme] Mounted shared theme.css', { path: found });

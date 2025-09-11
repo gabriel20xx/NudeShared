@@ -45,7 +45,8 @@
     --shadow-focus-soft: 0 0 0 2px #ffb84d33;
     --color-focus-ring: 0 0 0 3px rgba(255, 152, 0, 0.4);
     --font-stack: system-ui, -apple-system, 'Segoe UI', Roboto, Ubuntu, Cantarell, 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
-    --layout-max-width: 960px;
+    /* Global max layout width (wider for generator & large dashboards) */
+    --layout-max-width: 1400px;
     --nav-height: 62px;
     --topbar-height: 56px;
     --box-max-width: 720px;

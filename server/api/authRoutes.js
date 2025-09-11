@@ -153,23 +153,38 @@ export function buildAuthRouter(Router, options = {}) {
     try {
       const { email: identifier, password } = req.body || {};
       const raw = String(identifier || '').trim();
-      if (!validPassword(password)) return res.status(400).json({ error: 'Invalid credentials' });
 
       let row;
       if (raw.includes('@')) {
         const normalized = normalizeEmail(raw);
-        if (!validEmail(normalized)) return res.status(400).json({ error: 'Invalid credentials' });
-        const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
-        if (rows && rows.length) row = rows[0];
+        if (validEmail(normalized)) {
+          try {
+            const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
+            if (rows && rows.length) row = rows[0];
+          } catch {}
+        }
       } else {
-        const uname = normalizeUsername(raw);
-        if (!uname) return res.status(400).json({ error: 'Invalid credentials' });
+        // Attempt username lookup using raw (case-insensitive) then fallback to normalized sanitized form
         try {
-          const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [uname]);
+          const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [raw]);
           if (rows && rows.length) row = rows[0];
         } catch {}
+        if (!row) {
+          const uname = normalizeUsername(raw);
+          if (uname) {
+            try {
+              const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [uname]);
+              if (rows && rows.length) row = rows[0];
+            } catch {}
+          }
+        }
       }
+      // Only enforce password length AFTER locating a user, to permit legacy shorter passwords if they exist
       if (!row) return res.status(401).json({ error: 'Invalid credentials' });
+      if (!password || (String(password).length < 6 && !verifyPassword(password, row.password_hash))) {
+        // Short password that doesn't match stored hash OR empty
+        return res.status(401).json({ error: 'Invalid credentials' });
+      }
       if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const user = sanitizeUserRow(row);
   req.session.user = user;

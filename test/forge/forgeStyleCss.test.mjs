@@ -11,9 +11,11 @@ test('forge style.css served and linked in generator page', async () => {
   const { server, url } = await startEphemeral(forgeApp);
   try {
     // Fetch stylesheet directly
-    const cssRes = await fetch(url + '/css/style.css');
-    expect(cssRes.status).toBe(200);
-    const css = await cssRes.text();
+  const cssRes = await fetch(url + '/css/style.css');
+  expect(cssRes.status).toBe(200);
+  const cache = cssRes.headers.get('cache-control');
+  expect(cache).toMatch(/max-age=3600/);
+  const css = await cssRes.text();
     expect(css).toMatch(/NudeForge main stylesheet/);
     expect(css.length).toBeGreaterThan(500); // basic size sanity
 
