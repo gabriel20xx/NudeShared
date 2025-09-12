@@ -29,7 +29,11 @@ describe('HTTP Helpers', () => {
       expect(await res.text()).toContain('body');
       const logJoined = logs.join('\n');
       expect(logJoined).toMatch(/Mounted \/shared assets/);
-    } finally { server.close(); }
+    } finally {
+      server.close();
+      // Cleanup temp directory created for this test (ensures no accumulation across runs)
+      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) { /* ignore cleanup errors */ }
+    }
   });
 
   it('registerCachePolicyEndpoint returns expected JSON and rate limits after burst', async () => {

@@ -81,11 +81,28 @@ export async function runMigrations() {
   await ensureMediaViewDownloadTables();
   await ensureMediaMetricsTable();
   await ensureMediaViewSessionsTable();
+  await ensureMediaTagsTable();
+  await ensureMediaTagVotesTable();
+  await backfillCategoryTags();
   await ensureSettingsTable();
+  await softNullLegacyCategory(); // Invoke softNullLegacyCategory at the end of migrations
+  // Phase 4 readiness logging: if flag set, report residual category values (non-blocking)
+  if(process.env.ENABLE_CATEGORY_REMOVAL==='1'){
+    try {
+      const { rows: remain } = await query(`SELECT COUNT(1) AS c FROM media WHERE category IS NOT NULL AND category <> ''`);
+      const { rows: distinct } = await query(`SELECT category, COUNT(1) AS uses FROM media WHERE category IS NOT NULL AND category <> '' GROUP BY category ORDER BY uses DESC LIMIT 10`);
+      Logger.info(MODULE, 'CATEGORY_REMOVAL_READINESS', { remaining: Number(remain?.[0]?.c||0), sampleDistinct: distinct });
+    } catch(e){
+      Logger.warn(MODULE, 'CATEGORY_REMOVAL_READINESS_FAILED', { error: e.message });
+    }
+  }
   if (!(process.env.SILENCE_MIGRATION_LOGS === 'true')) {
     Logger.success(MODULE, 'Migrations complete');
   }
 }
+
+// Internal/test exports to allow targeted testing of phased deprecation logic.
+export { backfillCategoryTags, softNullLegacyCategory };
 
 async function ensureMediaLikeSaveTables() {
   const driver = getDriver();
@@ -231,6 +248,16 @@ async function ensureMediaTable(){
         app TEXT,
         title TEXT,
         category TEXT,
+        /* DEPRECATION PLAN (category -> tags)
+           Phase 1 (DONE): Introduce media_tags table + backfill existing non-empty category values as lowercase tags (idempotent).
+           Phase 2 (CURRENT): All new UI & APIs operate on tags; category field is read-only legacy and should not be written except by historical code paths.
+           Phase 3 (SCHEDULE): Add migration step that copies any remaining non-empty category values into media_tags (safety re-run) and then NULLs category column for rows (soft disable).
+           Phase 4 (FINAL – future major release): Create additive migration that creates new table media_legacy_category_backup(media_id, category, archived_at) then
+             INSERT remaining distinct category values for audit, followed by CREATE VIEW media_category_removed AS SELECT 'removed';
+             Do NOT DROP COLUMN in-place in prior migrations; only remove in a clearly versioned major schema bump.
+           Validation criteria before Phase 3: zero external consumers observed querying media.category (instrument queries or audit code search).
+           NOTE: Never rewrite existing migration blocks; add new steps at end preserving historical reproducibility.
+        */
         active BOOLEAN NOT NULL DEFAULT true,
         metadata JSONB,
         original_filename TEXT,
@@ -252,6 +279,7 @@ async function ensureMediaTable(){
         app TEXT,
         title TEXT,
         category TEXT,
+  -- TODO: deprecate and eventually remove category column after full tag migration validation
         active INTEGER NOT NULL DEFAULT 1,
         metadata TEXT,
         original_filename TEXT,
@@ -291,6 +319,153 @@ async function ensureSettingsTable(){
       );
     `);
     return;
+  }
+}
+
+// media_tags: many-to-one tags for media (non-destructive additive migration replacing legacy category usage)
+async function ensureMediaTagsTable(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_tags (
+        id BIGSERIAL PRIMARY KEY,
+        media_id BIGINT NOT NULL,
+        tag TEXT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (media_id, tag)
+      );
+      CREATE INDEX IF NOT EXISTS media_tags_media_idx ON media_tags (media_id);
+      CREATE INDEX IF NOT EXISTS media_tags_tag_idx ON media_tags (tag);
+      -- Optional case-insensitive search support
+      CREATE INDEX IF NOT EXISTS media_tags_lower_tag_idx ON media_tags (lower(tag));
+      -- Attribution column (nullable for legacy rows) referencing users.id when available
+      ALTER TABLE media_tags ADD COLUMN IF NOT EXISTS contributor_user_id BIGINT;
+      CREATE INDEX IF NOT EXISTS media_tags_contributor_idx ON media_tags (contributor_user_id);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_tags (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER NOT NULL,
+        tag TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (media_id, tag)
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_media_idx ON media_tags (media_id);`); } catch(e) { /* optional */ }
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_tag_idx ON media_tags (tag);`); } catch(e) { /* optional */ }
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_lower_tag_idx ON media_tags (lower(tag));`); } catch(e) { /* optional */ }
+    // Attempt to add contributor_user_id if missing (SQLite lacks IF NOT EXISTS for add column in some versions)
+    try { await query(`ALTER TABLE media_tags ADD COLUMN contributor_user_id INTEGER`); } catch(e) { /* ignore duplicate column */ }
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_contributor_idx ON media_tags (contributor_user_id);`); } catch(e) { /* optional */ }
+    return;
+  }
+}
+
+// User votes on tags (per media, per tag, per user). score = sum(direction) aggregated via query (direction constrained to -1 or 1)
+async function ensureMediaTagVotesTable(){
+  const driver = getDriver();
+  if(driver === 'pg'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_tag_votes (
+        id BIGSERIAL PRIMARY KEY,
+        media_id BIGINT NOT NULL,
+        tag TEXT NOT NULL,
+        user_id BIGINT NOT NULL,
+        direction SMALLINT NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (media_id, tag, user_id)
+      );
+      CREATE INDEX IF NOT EXISTS media_tag_votes_media_idx ON media_tag_votes (media_id);
+      CREATE INDEX IF NOT EXISTS media_tag_votes_tag_idx ON media_tag_votes (tag);
+      CREATE INDEX IF NOT EXISTS media_tag_votes_user_idx ON media_tag_votes (user_id);
+    `);
+    return;
+  }
+  if(driver === 'sqlite'){
+    await query(`
+      CREATE TABLE IF NOT EXISTS media_tag_votes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        media_id INTEGER NOT NULL,
+        tag TEXT NOT NULL,
+        user_id INTEGER NOT NULL,
+        direction INTEGER NOT NULL,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE (media_id, tag, user_id)
+      );
+    `);
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_media_idx ON media_tag_votes (media_id);`); } catch(e) { /* optional */ }
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_tag_idx ON media_tag_votes (tag);`); } catch(e) { /* optional */ }
+    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_user_idx ON media_tag_votes (user_id);`); } catch(e) { /* optional */ }
+    return;
+  }
+}
+
+// Backfill legacy category values into media_tags (one-time idempotent).
+// Inserts a tag row for each media that has a non-null, non-empty category and no existing identical tag.
+async function backfillCategoryTags(){
+  try {
+    const driver = getDriver();
+    if(driver === 'pg'){
+      await query(`INSERT INTO media_tags (media_id, tag)
+        SELECT m.id, lower(trim(m.category)) as tag
+        FROM media m
+        LEFT JOIN media_tags t ON t.media_id = m.id AND t.tag = lower(trim(m.category))
+        WHERE m.category IS NOT NULL AND m.category <> '' AND t.id IS NULL;`);
+    } else if(driver === 'sqlite') {
+      // SQLite variant; use INSERT OR IGNORE for idempotence
+      await query(`INSERT OR IGNORE INTO media_tags (media_id, tag)
+        SELECT m.id, lower(trim(m.category)) as tag
+        FROM media m
+        WHERE m.category IS NOT NULL AND m.category <> '';
+      `);
+    }
+  } catch(e){
+    Logger.warn(MODULE, 'Category backfill skipped', { error: e.message });
+  }
+}
+// NOTE: Future category removal sequence will add a new function here (e.g., softNullLegacyCategory()) and invoke at end of runMigrations() once guard flag present.
+// Phase 3 (planned) soft-null implementation (guarded): when ENABLE_SOFT_NULL_CATEGORY=1, ensure any remaining category values are re-backfilled then nulled.
+async function softNullLegacyCategory(){
+  if(process.env.ENABLE_SOFT_NULL_CATEGORY!=='1') return; // guard
+  try {
+    const driver = getDriver();
+    // Safety re-backfill (idempotent)
+    await backfillCategoryTags();
+    // Backup table
+    if(driver==='pg'){
+      await query(`CREATE TABLE IF NOT EXISTS media_legacy_category_backup (
+        media_id BIGINT NOT NULL,
+        category TEXT NOT NULL,
+        archived_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(media_id, category)
+      );`);
+      // Insert new (non-null) categories not yet archived
+      await query(`INSERT INTO media_legacy_category_backup (media_id, category)
+        SELECT id, category FROM media m
+        WHERE category IS NOT NULL AND category <> ''
+          AND NOT EXISTS (SELECT 1 FROM media_legacy_category_backup b WHERE b.media_id = m.id AND b.category = m.category);`);
+      // Soft null out (set to NULL)
+      await query(`UPDATE media SET category = NULL WHERE category IS NOT NULL AND category <> '';`);
+    } else if(driver==='sqlite') {
+      await query(`CREATE TABLE IF NOT EXISTS media_legacy_category_backup (
+        media_id INTEGER NOT NULL,
+        category TEXT NOT NULL,
+        archived_at TEXT NOT NULL DEFAULT (datetime('now')),
+        UNIQUE(media_id, category)
+      );`);
+      await query(`INSERT OR IGNORE INTO media_legacy_category_backup (media_id, category)
+        SELECT id, category FROM media WHERE category IS NOT NULL AND category <> '';
+      `);
+      // SQLite lacks strict NULL vs empty difference in some flows; set to NULL explicitly
+      await query(`UPDATE media SET category = NULL WHERE category IS NOT NULL AND category <> '';
+      `);
+    }
+    Logger.info(MODULE, 'Soft-null legacy category complete');
+  } catch(e){
+    Logger.warn(MODULE, 'Soft-null legacy category failed', { error: e.message });
   }
 }
 

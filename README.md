@@ -96,6 +96,7 @@ If you want to guarantee stability in production:
 - Add TypeScript types for the logger.
 - Provide additional shared utilities (validation, response formatting, constants).
 - Add automated tests for db/auth flows.
+- Extend tag analytics (e.g., co-occurrence matrix endpoint) after category column fully removed.
 
 ## Shared HTTP Helpers (Static + Cache Policy)
 
@@ -174,6 +175,87 @@ Add every new test (even if it targets an Admin/Flow/Forge route) inside this di
 Dedicated backpressure validation: `backpressure.test.mjs` ensures the async iterator wrapper correctly slices and delays streaming responses.
 
 Do not recreate per-app `test/` folders going forward; this prevents divergence and encourages reuse.
+
+## Category → Tag Migration Support
+
+The system is transitioning from a legacy single `media.category` column to multi-tag classification via `media_tags`.
+
+### New Supporting Endpoints
+| Endpoint | Purpose | Shape (append-only fields) |
+|----------|---------|---------------------------|
+| `GET /api/admin/schema/category-usage` | Shows remaining non-null legacy categories + top counts | `{ remaining, distinct:[{ category, uses }] }` |
+| `GET /api/admin/media/tags/suggestions?limit=20` | Frequency-ranked tag suggestions (default 20, max 200) | `{ tags:[{ tag, uses }], cached? }` |
+| `GET /api/admin/media/tags/cooccurrence?limit=50` | Top tag pair co-occurrences w/ association metrics | `{ pairs:[{ a,b,count,jaccard,lift }], cached? }` |
+| `GET /api/admin/media/tags/coverage?min=1&limit=2000&full=0` | Tagging completeness summary (sampled unless `full=1`) | `{ total, withMin, percent, distribution:[{tagCount,items}], topUntaggedSample:[...], min, limit, full }` |
+| `GET /api/admin/media/tags/typo-candidates?distance=2&max=50&minUses=1` | Near-duplicate / normalization candidates (Levenshtein <= distance) | `{ groups:[{ normalized, variants:[{ tag, uses }], size }] }` |
+| `GET /api/admin/media/tags/recency?limit=50` | Recent tag usage ordering + age/span metrics | `{ tags:[{ tag, uses, firstUsed, lastUsed, spanDays, ageDays }] }` |
+
+Caching: `suggestions` & `cooccurrence` responses cached in-process for 60s unless `?nocache=1` provided; cached responses include `cached:true`.
+
+Script utilities:
+| Script | Description | Output |
+|--------|-------------|--------|
+| `node NudeShared/scripts/simulate-category-removal.mjs` | Non-destructive readiness simulation for legacy category removal | Single-line JSON `{ preRemaining, postSoftNullRemaining, tagSample, ok, notes, error }` |
+| `node NudeShared/scripts/taxonomy-report.mjs --json` | Consolidated taxonomy analytics snapshot | JSON `{ remainingCategories, topTags, pairCardinality, coverage{...}, ms }` |
+| `node NudeShared/test/globalPostCleanup.mjs` | Post-suite hygiene removal of stray mkdtemp temp directories | JSON `{ ok, removed, candidates }` |
+
+### Tag Mode Toggle
+Admin media UI allows switching between ANY-match and ALL-match tag filtering. State persists via `localStorage` key `adminMediaTagMode` (`any` or `all`). Backend respects `tagMode=all` query param on listing endpoint.
+
+### Simulation Script
+Use the simulation script to validate readiness for fully dropping the legacy column (non-destructive):
+
+```
+node NudeShared/scripts/simulate-category-removal.mjs
+```
+
+It emits single-line JSON:
+```
+{"preRemaining":2,"postSoftNullRemaining":0,"tagSample":[{"tag":"scenery","uses":5}],"ok":true,"notes":[],"error":null}
+```
+
+Fields:
+- `preRemaining` – Count of legacy non-null categories before soft-null pass.
+- `postSoftNullRemaining` – Count after running migrations with `ENABLE_SOFT_NULL_CATEGORY=1`.
+- `tagSample` – Up to 10 most-used tags (frequency desc, then alpha).
+- `ok` – True if conditions indicate safe progression; false when anomalies detected.
+- `notes` – Explanatory notes when soft-null didn’t reduce counts or other query failures occurred.
+- `error` – High-level failure reason if an exception bubbled up.
+
+### Readiness Criteria (Summary)
+1. `remaining=0` in `/api/admin/schema/category-usage`.
+2. Simulation script outputs `ok:true` (or documented acceptable warnings).
+3. No new code writes to `media.category` outside migration backfill blocks.
+4. Tag coverage near-universal for active media assets.
+
+See `.github/ISSUE_TEMPLATE/category-removal-readiness.md` for the full checklist.
+
+## User Tagging & Voting (Flow)
+
+Schema additions:
+- `media_tags.contributor_user_id` (nullable) – attribution for first user adding a tag to a media item.
+- `media_tag_votes(media_id, tag, user_id, direction, created_at)` – vote rows; unique `(media_id, tag, user_id)`; `direction` ∈ {-1,1}. Setting direction=0 via API removes the vote.
+
+Shared helpers (`NudeShared/server/tags/tagHelpers.js`):
+- `normalizeTag(raw)` – lowercase, trimmed, collapse whitespace, max length 40.
+- `addTagToMedia(mediaKey, tag, userId)` – idempotent insert with attribution.
+- `applyTagVote(mediaKey, tag, userId, direction)` – upsert or delete (for 0) vote.
+- `getMediaTagsWithScores(mediaKey, userId)` – aggregated list `[ { tag, score, myVote, contributorUserId } ]` where `score = Σ direction`.
+
+Flow API endpoints:
+| Method | Path | Body | Response |
+|--------|------|------|----------|
+| GET | `/api/media/:mediaKey/tags` | — | `{ ok, tags:[...] }` |
+| POST | `/api/media/:mediaKey/tags` | `{ tag }` | `{ ok, added, tags }` |
+| POST | `/api/media/:mediaKey/tags/:tag/vote` | `{ direction }` (-1,0,1) | `{ ok, tags }` |
+
+UI: Minimal list + add field + vote buttons (▲ / ▼) on `home.ejs`. Future enhancement: stronger binding to currently displayed media key (placeholder inference for now).
+
+Tests (under `NudeShared/test/flow/`):
+- `flowMediaTagAdd.test.mjs` – attribution insertion.
+- `flowMediaTagVote.test.mjs` – vote score transition lifecycle.
+
+Planned hardening (not yet implemented): per-user add rate limiting, moderation queue, spam/abuse detection heuristics.
 
 ### Running the unified suite
 
