@@ -110,29 +110,33 @@
 async function fetchUserProfile(){
   try {
     const res = await fetch('/api/profile');
-    const data = await res.json();
-    if ((data.success || data.ok) && (data.data || data.profile || data.user)) {
-      const u = data.data || data.profile || data.user;
+    let data = {};
+    try { data = await res.json(); } catch { /* HTML or empty -> treat as unauth */ }
+    const payload = (data && (data.data || data.profile || data.user)) || null;
+    if (!res.ok && !payload) {
+      // likely 401 / 404; silently skip (page already shows login prompt if unauth)
+      return;
+    }
+    if (payload) {
+      const u = payload;
       const $ = (id)=>document.getElementById(id);
-      $('username').textContent = u.username || 'Anonymous';
-      $('email').textContent = u.email || 'Not set';
-      $('bio').textContent = u.bio || 'No bio yet.';
-  const pic = u.profilePicture || '/images/default-avatar.png';
-      const imgEl = $('profilePicture');
-      if (imgEl) imgEl.src = pic;
-  // Seed security form values
-  const eu = String(u.email || '').trim();
-  document.getElementById('secUsername').value = u.username || '';
-  document.getElementById('secEmail').value = eu;
-  // MFA status
-  const mfaOn = !!u.mfaEnabled;
-  document.getElementById('mfaStatus').textContent = mfaOn ? 'TOTP is enabled on your account.' : 'TOTP is not enabled.';
-  document.getElementById('mfaSetup').style.display = mfaOn ? 'none' : 'block';
-  document.getElementById('mfaDisable').style.display = mfaOn ? 'block' : 'none';
+      const set = (id,val)=>{ const el=$(id); if(el) el.textContent=val; };
+      set('username', u.username || 'Anonymous');
+      set('email', u.email || 'Not set');
+      set('bio', u.bio || 'No bio yet.');
+      const pic = u.profilePicture || '/images/default-avatar.png';
+      const imgEl = $('profilePicture'); if(imgEl) imgEl.src = pic;
+      const eu = String(u.email || '').trim();
+      const secU = $('secUsername'); if(secU) secU.value = u.username || '';
+      const secE = $('secEmail'); if(secE) secE.value = eu;
+      const mfaOn = !!u.mfaEnabled;
+      const st = $('mfaStatus'); if(st) st.textContent = mfaOn ? 'TOTP is enabled on your account.' : 'TOTP is not enabled.';
+      const setup = $('mfaSetup'); if(setup) setup.style.display = mfaOn ? 'none':'block';
+      const disable = $('mfaDisable'); if(disable) disable.style.display = mfaOn ? 'block':'none';
     } else {
       toast?.error?.('Failed to load profile');
     }
-  } catch(e){ console.error(e); toast?.error?.('Profile load error'); }
+  } catch(e){ console.warn('profile fetch error', e); toast?.error?.('Profile load error'); }
 }
 function editProfile(){
   const show = (el, v)=>{ if (el) el.style.display=v; };

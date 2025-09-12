@@ -1,9 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import fs from 'fs';
 import path from 'path';
-import { ensureTestDb } from '../../server/test/testDbUtils.js';
-import { startEphemeral } from '../../server/test/testServerUtils.js';
-import { query } from '../../server/index.js';
+import { ensureTestDb } from '../testUtils.js';
 
 // This test simulates queue workflow customization ensuring username-based folder path (fallback anonymous)
 // We don't invoke full ComfyUI workflow; instead we call the internal helper by importing queue.js and verifying computeUserOutputSubdir + path mutation logic.
@@ -17,7 +15,7 @@ const { /* sanitizeFolderName intentionally not exported */ } = queueMod;
 
 describe('forge output naming', () => {
   it('uses sanitized username or anonymous fallback', async () => {
-    await ensureTestDb();
+  await ensureTestDb({ memory: true, fresh: true });
     // Directly test helper
     const fn = queueMod.computeUserOutputSubdir;
     expect(fn('User_One')).toBe('user_one');
