@@ -35,6 +35,7 @@ export function buildAdminMediaRouter(options={}) {
   // Media listing with optional tag (or legacy category) & search filters
   router.get(`${basePath}/media`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
+      U.infoLog?.('ADMIN_MEDIA','list_start',{ tag:req.query.tag, tagMode:req.query.tagMode, search:req.query.search });
       const driver = getDriver();
   const tagFilterRaw = (req.query.tag || req.query.tags || '').toString().trim();
   const tagMode = (req.query.tagMode||'any').toString().toLowerCase(); // 'any' (default) or 'all'
@@ -88,12 +89,14 @@ export function buildAdminMediaRouter(options={}) {
         }
       }
       res.json({ success:true, media: rows });
+      U.infoLog?.('ADMIN_MEDIA','list_success',{ count: rows.length });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','list', e); res.status(500).json({ success:false,error:'Failed to list media'}); }
   });
 
   // Engagement counts for a batch of media keys
   router.post(`${basePath}/media/engagement-counts`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      U.infoLog?.('ADMIN_MEDIA','counts_start',{ keys: Array.isArray(req.body?.keys)? req.body.keys.length : 0 });
       const keys = Array.isArray(req.body?.keys) ? req.body.keys.map(k=>String(k||'').trim()).filter(Boolean) : [];
       if(!keys.length) return res.json({ success:true, counts:{} });
       const driver = getDriver();
@@ -111,12 +114,14 @@ export function buildAdminMediaRouter(options={}) {
   const dmap = mapFrom(downloads);
   const out = {}; for(const k of keys){ out[k] = { likes: lmap[k]||0, saves: smap[k]||0, views: vmap[k]||0, downloads: dmap[k]||0 }; }
       res.json({ success:true, counts: out });
+      U.infoLog?.('ADMIN_MEDIA','counts_success',{ keys: Object.keys(out).length });
     } catch(e){ U.errorLog?.('ADMIN_MEDIA','counts', e); res.status(500).json({ success:false,error:'Failed to load counts'}); }
   });
 
   // List usernames of users who liked a media item
   router.get(`${basePath}/media/likers`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
+      U.infoLog?.('ADMIN_MEDIA','likers_start',{ mediaKey: req.query.mediaKey });
       const key = String(req.query.mediaKey||'').trim(); if(!key) return res.status(400).json({ success:false,error:'mediaKey required' });
       const driver = getDriver();
       const sql = driver==='pg'
@@ -124,12 +129,14 @@ export function buildAdminMediaRouter(options={}) {
         : 'SELECT u.id, u.username, u.email FROM media_likes l JOIN users u ON u.id = l.user_id WHERE l.media_key=? ORDER BY u.username ASC LIMIT 500';
       const r = await query(sql, [key]);
       res.json({ success:true, users: r.rows });
+      U.infoLog?.('ADMIN_MEDIA','likers_success',{ mediaKey: key, users: r.rows.length });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','likers', e); res.status(500).json({ success:false,error:'Failed to load likers'}); }
   });
 
   // List usernames of users who saved a media item
   router.get(`${basePath}/media/savers`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
+      U.infoLog?.('ADMIN_MEDIA','savers_start',{ mediaKey: req.query.mediaKey });
       const key = String(req.query.mediaKey||'').trim(); if(!key) return res.status(400).json({ success:false,error:'mediaKey required' });
       const driver = getDriver();
       const sql = driver==='pg'
@@ -137,12 +144,14 @@ export function buildAdminMediaRouter(options={}) {
         : 'SELECT u.id, u.username, u.email FROM media_saves s JOIN users u ON u.id = s.user_id WHERE s.media_key=? ORDER BY u.username ASC LIMIT 500';
       const r = await query(sql, [key]);
       res.json({ success:true, users: r.rows });
+      U.infoLog?.('ADMIN_MEDIA','savers_success',{ mediaKey: key, users: r.rows.length });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','savers', e); res.status(500).json({ success:false,error:'Failed to load savers'}); }
   });
 
   // Batch media actions
   router.post(`${basePath}/media/actions`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
+      U.infoLog?.('ADMIN_MEDIA','actions_start',{ action: req.body?.action, ids: Array.isArray(req.body?.ids)? req.body.ids.length:0 });
       const { action, ids, title, category, tags } = req.body||{};
       if(!Array.isArray(ids) || ids.length===0) return res.status(400).json({ success:false,error:'No ids'});
       const placeholdersPg = ids.map((_,i)=> `$${i+1}`).join(',');
@@ -229,6 +238,7 @@ export function buildAdminMediaRouter(options={}) {
       }
       done = r?.rowCount ?? r?.changes ?? 0;
       res.json({ success:true, action, affected: done });
+      U.infoLog?.('ADMIN_MEDIA','actions_success',{ action, affected: done });
     }catch(e){ U.errorLog?.('ADMIN_MEDIA','actions', e); res.status(500).json({ success:false,error:'Action failed'}); }
   });
 
@@ -237,9 +247,12 @@ export function buildAdminMediaRouter(options={}) {
   // Intentionally read-only; helps determine readiness for full column removal.
   router.get(`${basePath}/schema/category-usage`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      U.infoLog?.('ADMIN_MEDIA','category_usage_start');
       const { rows: remain } = await query(`SELECT COUNT(1) AS c FROM media WHERE category IS NOT NULL AND category <> ''`);
       const { rows: distinct } = await query(`SELECT category, COUNT(1) AS uses FROM media WHERE category IS NOT NULL AND category <> '' GROUP BY category ORDER BY uses DESC LIMIT 10`);
-      res.json({ success:true, remaining: Number(remain?.[0]?.c||0), distinct: distinct.map(r=> ({ category: r.category, uses: Number(r.uses) })) });
+      const payload = { success:true, remaining: Number(remain?.[0]?.c||0), distinct: distinct.map(r=> ({ category: r.category, uses: Number(r.uses) })) };
+      res.json(payload);
+      U.infoLog?.('ADMIN_MEDIA','category_usage_success',{ remaining: payload.remaining, distinct: payload.distinct.length });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','category_usage', e); res.status(500).json({ success:false,error:'Failed to load category usage'});
     }
@@ -251,6 +264,7 @@ export function buildAdminMediaRouter(options={}) {
       if(!('nocache' in req.query)){
         const c = getCached(req); if(c){ return res.json(c); }
       }
+      U.infoLog?.('ADMIN_MEDIA','tag_suggestions_start',{ limit: req.query.limit });
       let limit = Number(req.query.limit || 20);
       if(!Number.isFinite(limit) || limit <= 0) limit = 20;
       if(limit > 200) limit = 200; // hard cap
@@ -260,6 +274,7 @@ export function buildAdminMediaRouter(options={}) {
       const out = { success:true, tags: rows.map(r=> ({ tag: r.tag, uses: Number(r.uses) })), cached: false };
       if(!('nocache' in req.query)) setCached(req, { ...out, cached:true });
       res.json(out);
+      U.infoLog?.('ADMIN_MEDIA','tag_suggestions_success',{ count: out.tags.length, cached: out.cached });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','tag_suggestions', e); res.status(500).json({ success:false,error:'Failed to load tag suggestions'});
     }
@@ -272,6 +287,7 @@ export function buildAdminMediaRouter(options={}) {
       if(!('nocache' in req.query)){
         const c = getCached(req); if(c){ return res.json(c); }
       }
+      U.infoLog?.('ADMIN_MEDIA','tag_cooccurrence_start',{ limit: req.query.limit });
       let limit = Number(req.query.limit || 50);
       if(!Number.isFinite(limit) || limit <= 0) limit = 50;
       if(limit > 300) limit = 300; // safety cap
@@ -314,6 +330,7 @@ export function buildAdminMediaRouter(options={}) {
       const out = { success:true, pairs, cached:false };
       if(!('nocache' in req.query)) setCached(req, { ...out, cached:true });
       res.json(out);
+      U.infoLog?.('ADMIN_MEDIA','tag_cooccurrence_success',{ pairs: pairs.length, cached: out.cached });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','tag_cooccurrence', e); res.status(500).json({ success:false,error:'Failed to load tag cooccurrence'});
     }
@@ -324,6 +341,7 @@ export function buildAdminMediaRouter(options={}) {
   // Response: { success:true, total, withMin, percent, distribution:[{ tagCount, items }], topUntaggedSample:[...] }
   router.get(`${basePath}/media/tags/coverage`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      U.infoLog?.('ADMIN_MEDIA','tag_coverage_start',{ min: req.query.min, limit: req.query.limit, full: req.query.full });
       let min = Number(req.query.min || 1);
       if(!Number.isFinite(min) || min < 1) min = 1; if(min > 10) min = 10; // clamp
       const driver = getDriver();
@@ -357,7 +375,9 @@ export function buildAdminMediaRouter(options={}) {
       const percent = total ? withMin / total : 0;
       // Sample a few untagged media (tagCount = 0)
       const topUntaggedSample = rows.filter(r=> Number(r.tag_count||0)===0).slice(0,10).map(r=> ({ id:r.id, mediaKey:r.media_key, title:r.title, createdAt: r.created_at }));
-      res.json({ success:true, total, withMin, percent: Number(percent.toFixed(4)), distribution, topUntaggedSample, min, limit: full?null:limit, full });
+      const payload = { success:true, total, withMin, percent: Number(percent.toFixed(4)), distribution, topUntaggedSample, min, limit: full?null:limit, full };
+      res.json(payload);
+      U.infoLog?.('ADMIN_MEDIA','tag_coverage_success',{ total, withMin, percent: payload.percent });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','tag_coverage', e); res.status(500).json({ success:false,error:'Failed to load tag coverage'});
     }
@@ -368,6 +388,7 @@ export function buildAdminMediaRouter(options={}) {
   // Response: { success:true, groups:[{ normalized, variants:[{ tag, uses }], size }] }
   router.get(`${basePath}/media/tags/typo-candidates`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      U.infoLog?.('ADMIN_MEDIA','tag_typo_candidates_start',{ distance: req.query.distance, max: req.query.max, minUses: req.query.minUses });
       let distance = Number(req.query.distance || 2);
       if(!Number.isFinite(distance) || distance < 1) distance = 2; if(distance > 3) distance = 3; // clamp expensive
       let max = Number(req.query.max || 50); if(!Number.isFinite(max) || max <=0) max=50; if(max>200) max=200;
@@ -413,6 +434,7 @@ export function buildAdminMediaRouter(options={}) {
         }
       }
       res.json({ success:true, groups });
+      U.infoLog?.('ADMIN_MEDIA','tag_typo_candidates_success',{ groups: groups.length });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','tag_typo_candidates', e); res.status(500).json({ success:false,error:'Failed to load typo candidates'});
     }
@@ -423,6 +445,7 @@ export function buildAdminMediaRouter(options={}) {
   // Response: { success:true, tags:[{ tag, uses, firstUsed, lastUsed, spanDays, ageDays }] }
   router.get(`${basePath}/media/tags/recency`, ensureAuth, ensureAdmin, async (req,res)=>{
     try {
+      U.infoLog?.('ADMIN_MEDIA','tag_recency_start',{ limit: req.query.limit });
       let limit = Number(req.query.limit || 50); if(!Number.isFinite(limit) || limit<=0) limit=50; if(limit>300) limit=300;
       const driver = getDriver();
       const sql = driver==='pg'
@@ -438,6 +461,7 @@ export function buildAdminMediaRouter(options={}) {
         return { tag: r.tag, uses:Number(r.uses), firstUsed:first, lastUsed:last, spanDays: Number(spanDays.toFixed(3)), ageDays: Number(ageDays.toFixed(3)) };
       });
       res.json({ success:true, tags: out });
+      U.infoLog?.('ADMIN_MEDIA','tag_recency_success',{ count: out.length });
     } catch(e){
       U.errorLog?.('ADMIN_MEDIA','tag_recency', e); res.status(500).json({ success:false,error:'Failed to load tag recency'});
     }

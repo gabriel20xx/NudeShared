@@ -131,7 +131,7 @@ async function ensureMediaLikeSaveTables() {
     await query(`
       CREATE TABLE IF NOT EXISTS media_likes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER,
         media_key TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (user_id, media_key)
@@ -141,7 +141,7 @@ async function ensureMediaLikeSaveTables() {
     await query(`
       CREATE TABLE IF NOT EXISTS media_saves (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        user_id INTEGER NOT NULL,
+        user_id INTEGER,
         media_key TEXT NOT NULL,
         created_at TEXT NOT NULL DEFAULT (datetime('now')),
         UNIQUE (user_id, media_key)

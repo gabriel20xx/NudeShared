@@ -58,7 +58,7 @@ export async function initDb() {
       Logger.success(MODULE, 'Connected to PostgreSQL');
       return { driver };
     } catch (err) {
-        Logger.error(MODULE, 'PostgreSQL connection failed, attempting SQLite fallback', err); // Connection error handling
+        Logger.error(MODULE, 'PostgreSQL connection failed, attempting SQLite fallback', { message: err?.message, code: err?.code }); // Connection error handling
     }
   }
   try {
@@ -85,14 +85,34 @@ export async function initDb() {
     } catch (e) {
       // Swallow close errors during shutdown
     }
-    sqliteDb = new BetterSqlite3(sqlitePath);
+    try {
+      sqliteDb = new BetterSqlite3(sqlitePath);
+    } catch (loadErr) {
+      const isDlopen = /ERR_DLOPEN_FAILED/i.test(String(loadErr?.code)) || /dlopen/i.test(String(loadErr?.message||''));
+      Logger.error(MODULE, 'better-sqlite3 native module load failed', { code: loadErr?.code, message: loadErr?.message, isDlopen, sqlitePath });
+      if (isDlopen) {
+        Logger.warn(MODULE, 'Detected native load failure (dlopen). Ensure optional native deps built or install prebuilt binaries. Falling back to in-memory ephemeral DB if allowed.');
+        // Attempt an in-memory ephemeral DB as last resort (non-persistent)
+        try {
+          sqliteDb = new BetterSqlite3(':memory:');
+          driver = 'sqlite';
+          Logger.warn(MODULE, 'Using in-memory SQLite fallback due to native load error');
+          return { driver, ephemeral: true };
+        } catch (memErr) {
+          Logger.error(MODULE, 'Failed creating in-memory fallback SQLite instance', { message: memErr?.message });
+          throw loadErr; // rethrow original
+        }
+      } else {
+        throw loadErr;
+      }
+    }
     sqliteDb.pragma('journal_mode = WAL');
     driver = 'sqlite';
     Logger.success(MODULE, `Using SQLite database at ${sqlitePath}`);
     return { driver };
   } catch (err) {
     driver = 'none';
-      Logger.error(MODULE, 'Failed to initialize SQLite fallback', err); // SQLite initialization error handling
+      Logger.error(MODULE, 'Failed to initialize SQLite fallback', { message: err?.message, code: err?.code }); // SQLite initialization error handling
     throw err;
   }
 }
@@ -139,3 +159,7 @@ export async function closeDb() {
     finally { sqliteDb = undefined; }
   }
 }
+
+// Optional re-export of migrations to keep legacy test imports stable.
+// NOTE: Prefer importing runMigrations directly from migrate.js in new code.
+export { runMigrations } from './migrate.js';
