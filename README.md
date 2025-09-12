@@ -68,6 +68,39 @@ ln -s ../NudeShared/theme.css NudeForge/src/public/css/theme.css
 
 When using symlinks, you can comment out the copy step in `entrypoint.sh` or adapt a dev-only script.
 
+### Native module (better-sqlite3) "invalid ELF header" troubleshooting
+
+If you see log lines like:
+
+```
+[ERROR] [DB] better-sqlite3 native module load failed { code: 'ERR_DLOPEN_FAILED', message: '... invalid ELF header' }
+```
+
+It means a prebuilt native binary compiled for a different OS/architecture leaked into the runtime container (common when mounting host `node_modules` from Windows/macOS into a Linux container).
+
+Remediation options:
+1. Prefer a clean install inside the container (do not bind-mount host `node_modules`).
+2. Ensure the runtime entrypoint rebuilds the module. The shared `NodeDocker/docker-entrypoint.sh` now runs `npm rebuild better-sqlite3 --build-from-source` for both the app and shared directories automatically.
+3. Remove the stale binary and allow reinstall:
+	```bash
+	rm -rf NudeShared/node_modules/better-sqlite3
+	npm install --workspace @gabriel20xx/nude-shared
+	```
+4. Use PostgreSQL (`DATABASE_URL=postgres://...`) so the native SQLite dependency is only a fallback.
+
+Environment override (force memory-only fallback if native keeps failing) – set before app start:
+```
+SQLITE_PATH=:memory:
+```
+(Data will be ephemeral – only recommended for smoke tests.)
+
+If you continue to experience issues, rebuild with full toolchain available:
+```
+docker build -t nudeflow:rt ./NodeDocker --no-cache
+docker run --rm -e APP_REPO=gabriel20xx/NudeFlow -p 8080:8080 nudeflow:rt
+```
+
+
 ## Updating assets & server modules
 - Edit `theme.css` or client JS and reload apps; they serve directly from `/shared` when mounted to the `NudeShared` directory.
 - Server-side changes (logger, db, auth) are imported at runtime by the apps; restart the server process to pick up changes.
