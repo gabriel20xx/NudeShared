@@ -24,7 +24,11 @@ describe('Forge progress UI', () => {
     document.getElementById('processingStatus').textContent='Idle';
     const window = { document, ClientLogger:{ info(){}, warn(){}, error(){} }, addEventListener(){}, removeEventListener(){} };
     global.window = window; global.document=document; global.ClientLogger=window.ClientLogger;
-  const mainPath = path.resolve('..','NudeForge','src','public','js','main.js');
+  // Resolve forge main.js relative to repo root (cwd is typically NudeShared in test runs)
+  let mainPath = path.resolve(process.cwd(), '..', 'NudeForge', 'src', 'public', 'js', 'main.js');
+  if (!fs.existsSync(mainPath)) {
+    mainPath = path.resolve(process.cwd(), 'NudeForge', 'src', 'public', 'js', 'main.js');
+  }
     const source = fs.readFileSync(mainPath,'utf8');
     const sanitized = source.replace(/(^|\n)import[^;]+;?/g,'').replace(/export\s+\{[^}]+\};?/g,'');
     new Function(sanitized)();

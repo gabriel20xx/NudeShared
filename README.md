@@ -301,3 +301,57 @@ npm run test --workspace=nudeadmin
 ```
 
 Coverage combines sources from Admin, Flow, Forge, and Shared. Set `ENABLE_REAL_SHARP=1` to temporarily enable real image processing in a focused test.
+
+## Test Artifact Cleanup & Environment Flags
+
+The unified runner (`NudeShared/scripts/run-all-tests.mjs`) now performs automatic cleanup of transient test artifacts immediately before exiting (both on success and failure paths).
+
+### What Gets Removed Automatically
+- Mktemp / random output directories matching known patterns (e.g. `nudeadmin-out-*`, `tmp-shared-test-*`).
+- Stray copied media or ephemeral output assets created during tests inside top-level `output/`, `copy/`, or within `NudeShared/output/` that match ephemeral naming patterns.
+- OS-level temp directories created via Node's `fs.mkdtemp` when they follow the suite's naming convention.
+
+This makes repeated local runs and CI executions deterministic and prevents disk bloat from accumulating transient directories.
+
+### Environment Flags
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `DISABLE_TEST_CLEANUP` | unset / `false` | When set to a truthy value (`1`, `true`), skips all automated artifact sweeping (legacy behavior). |
+| `NUDE_REMOVE_TESTS_AFTER_RUN` | unset / `false` | When truthy, removes the entire `NudeShared/test/` directory after a successful run (intended ONLY for specialized CI cache-minimizing workflows). Logs a warning and is ignored on test failures. |
+
+### Safety & Idempotence
+The cleanup step only targets known ephemeral patterns and will noop safely if nothing matches. It logs each removal so you can audit what was deleted. If you encounter a scenario where an important artifact was removed inadvertently, open an issue and add a more restrictive pattern or explicit allowlist exception.
+
+### Legacy Post-Cleanup Script
+`NudeShared/test/globalPostCleanup.mjs` still exists but is now redundant. Prefer relying on the integrated cleanup in `run-all-tests.mjs`. The legacy script may be removed after a deprecation window once all pipelines are confirmed to rely exclusively on the integrated logic.
+
+### Opting Out (Debugging)
+Set `DISABLE_TEST_CLEANUP=1` when you need to inspect generated temp directories after a failing test. They will remain in place for manual inspection.
+
+### Full Removal of Tests (Experimental)
+`NUDE_REMOVE_TESTS_AFTER_RUN` is an aggressive optimization for space-sensitive CI layers. Use with caution—subsequent tasks in the same job that expect test files will fail. Never enable this in a developer workstation environment.
+
+### Example Commands
+```
+# Normal run with cleanup (default)
+pnpm vitest run
+
+# Skip cleanup for debugging
+set DISABLE_TEST_CLEANUP=1; pnpm vitest run   # Windows PowerShell / CMD style
+
+# CI space optimization (after caching artifacts)
+NUDE_REMOVE_TESTS_AFTER_RUN=1 pnpm vitest run
+```
+
+### Logging
+During the run you'll see log lines similar to:
+```
+[cleanup] Removed directory: C:\\...\\tmp-shared-test-abcd12
+[cleanup] Removed file: output\\test-output-one.png
+```
+If `DISABLE_TEST_CLEANUP` is set you'll instead see:
+```
+[cleanup] Skipped (DISABLE_TEST_CLEANUP=1)
+```
+
+---

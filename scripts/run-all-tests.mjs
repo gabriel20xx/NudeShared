@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 import { spawn } from 'child_process';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -17,12 +19,77 @@ function run(cmd, args, cwd){
   });
 }
 
+function log(...a){ console.log('[test-runner]', ...a); }
+
+function removeIfExists(p){
+  try { if(fs.existsSync(p)) { fs.rmSync(p, { recursive:true, force:true }); return true; } } catch {} return false;
+}
+
+function sweepTempArtifacts(){
+  if(process.env.DISABLE_TEST_CLEANUP==='1'){ log('Temp cleanup disabled by env'); return; }
+  const started = Date.now();
+  const cwd = process.cwd();
+  const removed = [];
+  const patterns = [
+    /^tmp-shared-test-/i,
+    /^nudeadmin-out-/i,
+    /^vite-temp-/i,
+    /^vitest-temp-/i,
+    /^tmp-fallback-/i // ensure fallback tmp dirs removed
+  ];
+  // OS tmp dir scan
+  try {
+    for(const name of fs.readdirSync(os.tmpdir())){
+      if(patterns.some(rx=>rx.test(name))){
+        const full = path.join(os.tmpdir(), name);
+        if(removeIfExists(full)) removed.push(full);
+      }
+    }
+  } catch {}
+  // CWD scan
+  try {
+    for(const name of fs.readdirSync(cwd)){
+      if(patterns.some(rx=>rx.test(name))){
+        const full = path.join(cwd, name);
+        if(removeIfExists(full)) removed.push(full);
+      }
+    }
+  } catch {}
+  // Per-app stray .thumbs inside test ephemeral roots (shallow search)
+  const searchDirs = [cwd];
+  for(const dir of searchDirs){
+    try {
+      for(const name of fs.readdirSync(dir)){
+        if(name === '.thumbs'){
+          const full = path.join(dir, name);
+          if(removeIfExists(full)) removed.push(full);
+        }
+      }
+    } catch {}
+  }
+  log('Temp artifact sweep complete', { removed: removed.length, ms: Date.now()-started });
+}
+
+function maybeRemoveTestsDir(){
+  if(process.env.NUDE_REMOVE_TESTS_AFTER_RUN==='1'){
+    const testsPath = path.join(sharedRoot, 'test');
+    if(fs.existsSync(testsPath)){
+      log('NUDE_REMOVE_TESTS_AFTER_RUN=1 -> removing test directory');
+      try { fs.rmSync(testsPath, { recursive:true, force:true }); } catch {}
+    }
+  }
+}
+
 (async () => {
   try {
-    console.log('Running unified Vitest suite (NudeShared/tests)...');
+    log('Running unified Vitest suite (NudeShared/test)...');
     await run('npx', ['vitest','run','--config','vitest.config.mjs','--reporter','basic'], sharedRoot);
-    console.log('\nAll tests completed.');
+    log('Vitest execution finished successfully.');
+    sweepTempArtifacts();
+    maybeRemoveTestsDir();
+    log('All tests completed.');
   } catch (e) {
+    sweepTempArtifacts();
     console.error('Test run failed:', e.message);
     process.exit(1);
   }

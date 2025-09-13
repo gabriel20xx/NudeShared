@@ -18,7 +18,10 @@ export async function startEphemeral(appOrFactory){
     const server = http.createServer(app);
     server.listen(0, () => {
       const { port } = server.address();
-      resolve({ server, url: `http://127.0.0.1:${port}`, port });
+      // Provide both url and base for backwards compatibility with tests
+      // Some tests destructure { base } due to prior helper shape.
+      const url = `http://127.0.0.1:${port}`;
+      resolve({ server, url, base: url, port });
     });
   });
 }
