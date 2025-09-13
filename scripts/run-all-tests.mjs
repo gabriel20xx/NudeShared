@@ -14,7 +14,9 @@ const repoRoot = path.resolve(sharedRoot, '..');
 
 function run(cmd, args, cwd){
   return new Promise((resolve,reject)=>{
-    const p = spawn(cmd, args, { stdio:'inherit', cwd, shell: process.platform === 'win32' });
+    // Ensure sharp is disabled during automated test run to avoid native crashes on some Windows environments
+    const env = { ...process.env, NUDE_DISABLE_SHARP: process.env.NUDE_DISABLE_SHARP || '1' };
+    const p = spawn(cmd, args, { stdio:'inherit', cwd, shell: process.platform === 'win32', env });
     p.on('exit', code => code === 0 ? resolve() : reject(new Error(cmd+ ' exit ' + code)));
   });
 }
