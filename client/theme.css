@@ -508,7 +508,7 @@ a.btn-ghost { text-decoration: none; }
 html.no-scroll, body.no-scroll { overflow: hidden !important; }
 
 /* Floating media controls (shared) */
-.floating-controls { position: absolute; right: .85rem; bottom: .85rem; z-index: 130; display: flex; flex-direction: column; gap: .6rem; opacity: 0; transform: translateY(8px); transition: opacity .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1); }
+.floating-controls { position: fixed; right: .85rem; bottom: calc(var(--bottom-nav-height) + .85rem); z-index: 130; display: flex; flex-direction: column; gap: .6rem; opacity: 0; transform: translateY(8px); transition: opacity .25s cubic-bezier(.4,0,.2,1), transform .25s cubic-bezier(.4,0,.2,1); }
 .floating-controls.visible { opacity: 1; transform: translateY(0); }
 .floating-controls.hidden { opacity: 0; transform: translateY(8px); }
 .float-btn { width: 44px; height: 44px; border-radius: 999px; border: 1px solid var(--color-border); background: rgba(30,32,38,0.82); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); color: var(--color-text); box-shadow: var(--shadow-md); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; }
@@ -519,7 +519,7 @@ html.no-scroll, body.no-scroll { overflow: hidden !important; }
 @media (max-width: 420px) {
     .floating-controls { 
         right: calc(env(safe-area-inset-right, 0px) + .65rem); 
-        bottom: calc(env(safe-area-inset-bottom, 0px) + .65rem); 
+        bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom, 0px) + .65rem); 
     }
 }
 .float-panel { position: absolute; right: 56px; bottom: 0; min-width: 180px; padding: .7rem .75rem; border-radius: var(--radius-md); border: 1px solid var(--color-border); background: rgba(30,32,38,0.9); backdrop-filter: blur(10px) saturate(140%); -webkit-backdrop-filter: blur(10px) saturate(140%); color: var(--color-text); box-shadow: var(--shadow-lg); }
