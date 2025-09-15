@@ -18,7 +18,10 @@ const TARGET_DIRS = [
 function rimrafChildren(dir) {
   if (!fs.existsSync(dir)) return { skipped: true };
   let removed = 0;
+  const isDatabaseDir = path.basename(dir) === 'database';
   for (const entry of fs.readdirSync(dir)) {
+    // Safety: Preserve primary fallback sqlite file to avoid Windows handle crashes (better-sqlite3)
+    if (isDatabaseDir && entry === 'dbfile.db') continue; // keep
     const full = path.join(dir, entry);
     try {
       fs.rmSync(full, { recursive: true, force: true });

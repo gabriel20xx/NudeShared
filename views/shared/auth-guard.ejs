@@ -8,9 +8,10 @@
 <% const _idPref = (typeof idPrefix !== 'undefined' && idPrefix) ? idPrefix : 'auth'; %>
 <% const _containerId = (typeof containerId !== 'undefined' && containerId) ? containerId : (_idPref + '-auth-guard'); %>
 <% const _btnLabel = (typeof buttonLabel !== 'undefined' && buttonLabel) ? buttonLabel : 'Log In / Sign Up'; %>
-<div id="<%- _containerId %>" class="auth-guard" aria-label="Login required" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);min-height:50vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
-  <% if (message) { %><p class="auth-guard-msg" style="font-size:1rem;color:var(--color-text-dim);"><%- message %></p><% } %>
-  <button id="<%- _idPref %>LoginLink" type="button" class="auth-btn" style="margin-top:.25rem;"><%- _btnLabel %></button>
+<% const _msgId = _idPref + 'AuthMsg'; %>
+<div id="<%- _containerId %>" class="auth-guard" role="region" aria-label="Authentication required" aria-describedby="<%- _msgId %>" style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);min-height:50vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;">
+  <% if (message) { %><p id="<%- _msgId %>" class="auth-guard-msg" style="font-size:1rem;color:var(--color-text-dim);"><%- message %></p><% } %>
+  <button id="<%- _idPref %>LoginLink" type="button" class="auth-btn" aria-describedby="<%- _msgId %>" style="margin-top:.25rem;"><%- _btnLabel %></button>
 </div>
 <script>
 // Shared auth guard wiring (idPrefix: <%- _idPref %>)

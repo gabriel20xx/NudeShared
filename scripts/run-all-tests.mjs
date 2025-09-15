@@ -28,7 +28,7 @@ function removeIfExists(p){
 }
 
 function sweepTempArtifacts(){
-  if(process.env.DISABLE_TEST_CLEANUP==='1'){ log('Temp cleanup disabled by env'); return; }
+  if(process.env.DISABLE_TEST_CLEANUP==='1'){ log('Temp cleanup disabled by env (DISABLE_TEST_CLEANUP=1)'); return; }
   const started = Date.now();
   const cwd = process.cwd();
   const removed = [];
@@ -88,11 +88,39 @@ function maybeRemoveTestsDir(){
     await run('npx', ['vitest','run','--config','vitest.config.mjs','--reporter','basic'], sharedRoot);
     log('Vitest execution finished successfully.');
     sweepTempArtifacts();
+    // Always run deep repo artifact cleanup unless disabled
+    await runRepoArtifactCleanup();
     maybeRemoveTestsDir();
-    log('All tests completed.');
+    log('All tests completed (with artifact cleanup).');
   } catch (e) {
     sweepTempArtifacts();
+    await runRepoArtifactCleanup(true);
     console.error('Test run failed:', e.message);
     process.exit(1);
   }
 })();
+
+// Invoke the broader repository cleanup script for database/input/output/copy + fallback dirs.
+// Controlled via AUTO_CLEAN_REPO_ARTIFACTS (default on) and DISABLE_REPO_ARTIFACT_CLEAN.
+async function runRepoArtifactCleanup(isFailure=false){
+  if(process.env.DISABLE_REPO_ARTIFACT_CLEAN==='1'){
+    log('Repo artifact cleanup skipped (DISABLE_REPO_ARTIFACT_CLEAN=1)');
+    return;
+  }
+  if(process.env.AUTO_CLEAN_REPO_ARTIFACTS==='0'){
+    log('Repo artifact cleanup disabled (AUTO_CLEAN_REPO_ARTIFACTS=0)');
+    return;
+  }
+  const script = path.join(sharedRoot, 'scripts', 'clean-test-artifacts.mjs');
+  if(!fs.existsSync(script)){
+    log('Cleanup script missing, skipping.');
+    return;
+  }
+  try {
+    log('Running repository artifact cleanup script...', { script, isFailure });
+    const out = await run('node', [script], path.dirname(script));
+    return out;
+  } catch(err){
+    console.error('[cleanup] Repository artifact cleanup failed:', err.message);
+  }
+}

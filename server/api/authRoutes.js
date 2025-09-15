@@ -110,7 +110,8 @@ export function buildAuthRouter(Router, options = {}) {
   try { process.emit && process.emit('nudeplatform:first-admin-created'); } catch (e) {
     // Emitting event failed (unlikely); continue
   }
-      req.session.user = user;
+  req.session.user = user;
+  try { req.session.userId = user.id; } catch {}
       res.json({ user, elevated: elevate });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }
   });
@@ -150,7 +151,8 @@ export function buildAuthRouter(Router, options = {}) {
       params.push(sess.id);
       await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
   const { rows } = await query('SELECT id, email, role, created_at FROM users WHERE id = $1', [sess.id]);
-      req.session.user = sanitizeUserRow(rows[0]);
+  req.session.user = sanitizeUserRow(rows[0]);
+  try { req.session.userId = req.session.user.id; } catch {}
       res.json({ ok: true });
     } catch (e) { Logger.error(MODULE, 'Profile update error', e); res.status(500).json({ error: 'Failed to update profile' }); }
   });
@@ -200,6 +202,7 @@ export function buildAuthRouter(Router, options = {}) {
       if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const user = sanitizeUserRow(row);
   req.session.user = user;
+  try { req.session.userId = user.id; } catch {}
   try { await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [user.id]); } catch (e) { /* last_login update non-critical */ }
       res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Login error', e); res.status(500).json({ error: 'Login failed' }); }

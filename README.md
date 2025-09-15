@@ -320,6 +320,7 @@ pnpm vitest run
 # or
 npm run test --workspace=nudeadmin
 ```
+Unauthenticated views across apps should now use the shared partial `views/shared/auth-guard.ejs` instead of duplicating inline login prompts. Parameters:
 
 Coverage combines sources from Admin, Flow, Forge, and Shared. Set `ENABLE_REAL_SHARP=1` to temporarily enable real image processing in a focused test.
 
@@ -329,6 +330,17 @@ The unified runner (`NudeShared/scripts/run-all-tests.mjs`) now performs automat
 
 ### What Gets Removed Automatically
 - Mktemp / random output directories matching known patterns (e.g. `nudeadmin-out-*`, `tmp-shared-test-*`).
+
+**Accessibility Semantics (2025-09)**
+- The container now has `role="region"` and `aria-describedby` pointing to a generated message paragraph id `<idPrefix>AuthMsg`.
+- The login button also references this same id via `aria-describedby` so screen reader users hear the contextual message when focusing the button.
+- Tests for new unauth views must assert:
+	1. Presence of `role="region"` wrapper with correct `aria-describedby`.
+	2. Existence of the `<p id="<idPrefix>AuthMsg">` element.
+	3. The button includes matching `aria-describedby` and retains the `auth-btn` class.
+	4. Button id pattern `<idPrefix>LoginLink`.
+
+If you add new unauth states, reuse this partial; do not recreate bespoke markup. Provide a succinct `message` so the description is meaningful.
 - Stray copied media or ephemeral output assets created during tests inside top-level `output/`, `copy/`, or within `NudeShared/output/` that match ephemeral naming patterns.
 - OS-level temp directories created via Node's `fs.mkdtemp` when they follow the suite's naming convention.
 
