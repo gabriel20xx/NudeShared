@@ -1,7 +1,7 @@
 <% if (!isAuthenticated) { %>
   <main style="padding-top:var(--topbar-height);padding-bottom:var(--bottom-nav-height);min-height:50vh;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:1rem;" aria-label="Login required">
     <p style="font-size:1rem;color:var(--color-text-dim);">You must be logged in to view your profile.</p>
-    <a href="#" id="profileLoginLink" class="btn" role="button">Log In</a>
+  <button id="profileLoginLink" type="button" class="auth-btn" style="margin-top:.25rem;">Log In / Sign Up</button>
     <script>
       (function(){
         function wire(){
