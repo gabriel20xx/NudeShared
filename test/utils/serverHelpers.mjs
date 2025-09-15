@@ -21,7 +21,9 @@ export async function startEphemeral(appOrFactory){
       // Provide both url and base for backwards compatibility with tests
       // Some tests destructure { base } due to prior helper shape.
       const url = `http://127.0.0.1:${port}`;
-      resolve({ server, url, base: url, port });
+      // Attach a convenience async close() to align with newer test expectations.
+      const close = () => new Promise(res => server.close(res));
+      resolve({ server, url, base: url, port, close });
     });
   });
 }
@@ -31,6 +33,13 @@ export async function withEphemeral(appFactory, fn){
   const { server, url, port } = await startEphemeral(appFactory);
   try { return await fn({ server, url, port }); }
   finally { server.close(); }
+}
+
+// Simple helper to fetch HTML from an ephemeral server (kept local to tests avoiding external deps)
+export async function fetchHtml(started, path = '/') {
+  const target = `${started.url}${path.startsWith('/') ? path : '/' + path}`;
+  const r = await fetch(target);
+  return await r.text();
 }
 
 /**
@@ -49,4 +58,4 @@ export async function createAuthenticatedServer({ app, role = 'user' }){
   }
 }
 
-export default { startEphemeral, withEphemeral, createAuthenticatedServer };
+export default { startEphemeral, withEphemeral, createAuthenticatedServer, fetchHtml };
