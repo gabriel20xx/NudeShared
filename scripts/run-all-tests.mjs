@@ -12,11 +12,12 @@ const repoRoot = path.resolve(sharedRoot, '..');
 // Single unified run: only execute vitest once using shared config.
 // Legacy per-app tests are stubs; if needed you could extend this to run app-local extras.
 
-function run(cmd, args, cwd){
+function run(cmd, args, cwd, { forceNoShell = false } = {}){
   return new Promise((resolve,reject)=>{
     // Ensure sharp is disabled during automated test run to avoid native crashes on some Windows environments
     const env = { ...process.env, NUDE_DISABLE_SHARP: process.env.NUDE_DISABLE_SHARP || '1' };
-    const p = spawn(cmd, args, { stdio:'inherit', cwd, shell: process.platform === 'win32', env });
+    const useShell = forceNoShell ? false : process.platform === 'win32';
+    const p = spawn(cmd, args, { stdio:'inherit', cwd, shell: useShell, env });
     p.on('exit', code => code === 0 ? resolve() : reject(new Error(cmd+ ' exit ' + code)));
   });
 }
@@ -111,16 +112,19 @@ async function runRepoArtifactCleanup(isFailure=false){
     log('Repo artifact cleanup disabled (AUTO_CLEAN_REPO_ARTIFACTS=0)');
     return;
   }
-  const script = path.join(sharedRoot, 'scripts', 'clean-test-artifacts.mjs');
-  if(!fs.existsSync(script)){
-    log('Cleanup script missing, skipping.');
-    return;
-  }
-  try {
-    log('Running repository artifact cleanup script...', { script, isFailure });
-    const out = await run('node', [script], path.dirname(script));
-    return out;
-  } catch(err){
-    console.error('[cleanup] Repository artifact cleanup failed:', err.message);
-  }
+  // Use repoRoot (computed at top) instead of undefined rootDir
+  const cleanupScript = path.join(repoRoot, 'NudeShared', 'scripts', 'clean-test-artifacts.mjs');
+    if(!fs.existsSync(cleanupScript)){
+      log('Cleanup script missing, skipping.');
+      return;
+    }
+    try {
+      log('Running repository artifact cleanup script...', { script: cleanupScript, isFailure });
+      // Pass script as separate arg to avoid quoting issues with spaces
+  // Force no shell to prevent Windows path splitting at spaces when invoking node script
+  const out = await run(process.execPath, [cleanupScript], path.dirname(cleanupScript), { forceNoShell: true });
+      return out;
+    } catch(err){
+      console.error('[cleanup] Repository artifact cleanup failed:', err.message);
+    }
 }

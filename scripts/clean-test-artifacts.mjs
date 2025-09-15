@@ -64,3 +64,11 @@ if (fs.existsSync(nudeSharedDir)) {
 
 const summary = { ok: true, cleaned: results, fallbackRemoved };
 console.log(JSON.stringify(summary, null, 2));
+
+// Windows occasionally reports a native module handle crash (exit code 3221225477) after
+// synchronous fs.rmSync bursts. Yield event loop once and exit 0 explicitly to stabilize CI.
+setTimeout(() => {
+  try {
+    process.exitCode = 0; // be explicit
+  } catch { /* noop */ }
+}, 10);

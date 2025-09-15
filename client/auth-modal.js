@@ -86,30 +86,27 @@
   // Header button: open if logged out; logout if logged in (verify server state first)
   openBtn.addEventListener('click', async ()=>{
     if(isLoggedIn()){
+      // Verify session still valid first (in case local flag drifted)
       try {
         const r = await fetch('/auth/me');
         const j = await r.json().catch(()=>({}));
         if (!r.ok || !j?.user) {
-          // Session expired on server; clear local flag and open login modal
           setLoggedIn(false);
-      // If running inside NudeAdmin, go to dashboard to trigger login page
-      const isAdminApp = !!document.querySelector('.admin-main');
-      if (isAdminApp) { window.location.replace('/dashboard'); return; }
-      open();
+          // Always redirect to root; each app's root resolves to its main page (Admin -> /dashboard, Forge -> /generator)
+          window.location.replace('/');
           return;
         }
       } catch {}
       try { await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); } catch {}
       setLoggedIn(false);
-    (window.toast ? toast.info('Logged out') : alert('Logged out'));
-    // On NudeAdmin, redirect so the authGate serves the login window page
-    const isAdminApp = !!document.querySelector('.admin-main');
-    if (isAdminApp) { window.location.replace('/dashboard'); return; }
-    // For other apps, open the login modal immediately
-    open();
-    } else {
-      open();
+      // Provide lightweight feedback then redirect to canonical root for ALL apps
+      try { (window.toast ? toast.info('Logged out') : console.info('[LOGOUT] Logged out')); } catch {}
+      // Unified behavior: always navigate to root. Individual apps define their own root redirect target.
+      window.location.replace('/');
+      return;
     }
+    // If not logged in, simply open auth modal
+    open();
   });
 
   // Close handlers
