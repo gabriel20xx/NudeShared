@@ -290,6 +290,27 @@ Tests (under `NudeShared/test/flow/`):
 
 Planned hardening (not yet implemented): per-user add rate limiting, moderation queue, spam/abuse detection heuristics.
 
+## Shared Auth Guard Partial
+
+Unauthenticated views across apps should now use the shared partial `views/shared/auth-guard.ejs` instead of duplicating inline login prompts. Parameters:
+
+- `idPrefix` (string) – prefixes the generated login button id (e.g. `profile` → `profileLoginLink`).
+- `message` (string) – explanatory paragraph above the button.
+- `buttonLabel` (optional) – defaults to `Log In / Sign Up`.
+- `containerId` (optional) – overrides the outer wrapping div id.
+
+The partial injects the unified `.auth-btn` styled button and wires a one-time click handler that triggers the existing auth modal via `#authOpenBtn`. Example usage:
+
+```ejs
+<%- include('shared/auth-guard', { idPrefix: 'profile', message: 'You must be logged in to view your profile.' }) %>
+```
+
+Refactors completed:
+- Shared profile partial now consumes it.
+- NudeFlow playlists view uses it (guard hidden until a 401 check reveals it).
+
+Test coverage: `flowAuthGuardPartial.test.mjs` asserts presence of the standardized IDs/classes on `/profile` and `/playlists` when unauthenticated.
+
 ### Running the unified suite
 
 From the monorepo root (where `vitest.config.mjs` lives):

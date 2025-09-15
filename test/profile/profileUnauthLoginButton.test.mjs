@@ -15,7 +15,8 @@ describe('profile unauth login button', () => {
     const sharedRoot = path.resolve(testDir, '..', '..'); // .../NudeShared/test
     const viewPath = path.join(sharedRoot, 'views', 'shared', 'profile.ejs');
     const template = fs.readFileSync(viewPath, 'utf8');
-    const html = ejs.render(template, { isAuthenticated: false });
+  // Provide filename so EJS can resolve relative include('./auth-guard') inside profile.ejs
+  const html = ejs.render(template, { isAuthenticated: false }, { filename: viewPath });
     expect(html).toMatch(/<button[^>]*id="profileLoginLink"[^>]*class="[^"]*auth-btn[^"]*"/);
     expect(html).toMatch(/Log In \/ Sign Up/);
   });
