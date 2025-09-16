@@ -213,6 +213,16 @@ a.btn-ghost { text-decoration: none; }
     justify-content: center !important
 }
 
+/* Full viewport minus nav height flex center utility for auth pages */
+.vh-center-minus-nav {
+    min-height: calc(100vh - var(--nav-height));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    padding: 1.25rem .75rem 2rem;
+}
+
 .shadow-sm {
     box-shadow: var(--shadow-sm) !important
 }
