@@ -8,6 +8,10 @@ function safeRm(p){
   try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
 }
 
+function listDirNames(dir){
+  try { return fs.readdirSync(dir); } catch { return []; }
+}
+
 function scanAndClean(){
   const cwd = process.cwd();
   const candidates = [];
@@ -24,7 +28,16 @@ function scanAndClean(){
   } catch {}
   let removed = 0;
   for (const c of candidates) { safeRm(c); removed++; }
-  console.log(JSON.stringify({ ok:true, removed, candidates }));
+
+  // Residual artifact scan for common writable dirs – list remaining entries (non-fatal, informational)
+  const writableRoots = ['output','input','copy'];
+  const residual = {};
+  for (const r of writableRoots){
+    const abs = path.join(cwd, '..', r); // parent of NudeShared (monorepo root assumption)
+    residual[r] = listDirNames(abs);
+  }
+
+  console.log(JSON.stringify({ ok:true, removed, candidates, residual }));
 }
 
 scanAndClean();

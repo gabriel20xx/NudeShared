@@ -4,6 +4,7 @@ import http from 'http';
 import { mountSharedStatic, registerCachePolicyEndpoint } from '../server/index.js';
 import path from 'path';
 import fs from 'fs';
+import { trackTempDir, trackTempFile, cleanupTracked } from './utils/tempFiles.mjs';
 
 function startServer(app){
   return new Promise(resolve=>{
@@ -18,8 +19,9 @@ function startServer(app){
 describe('HTTP Helpers', () => {
   it('mountSharedStatic logs first existing candidate and serves asset', async () => {
     const app = express();
-    const tempDir = fs.mkdtempSync(path.join(process.cwd(), 'tmp-shared-test-'));
-    fs.writeFileSync(path.join(tempDir, 'test.css'), 'body{color:#000}');
+    const tempDir = trackTempDir(fs.mkdtempSync(path.join(process.cwd(), 'tmp-shared-test-')));
+    const cssPath = trackTempFile(path.join(tempDir, 'test.css'));
+    fs.writeFileSync(cssPath, 'body{color:#000}');
     const logs = [];
     mountSharedStatic(app, { candidates: [tempDir], logger: { info: (...a)=>logs.push(a.join(' ')), warn: (...a)=>logs.push(a.join(' ')) } });
     const { server, port } = await startServer(app);
@@ -31,8 +33,7 @@ describe('HTTP Helpers', () => {
       expect(logJoined).toMatch(/Mounted \/shared assets/);
     } finally {
       server.close();
-      // Cleanup temp directory created for this test (ensures no accumulation across runs)
-      try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) { /* ignore cleanup errors */ }
+      await cleanupTracked();
     }
   });
 

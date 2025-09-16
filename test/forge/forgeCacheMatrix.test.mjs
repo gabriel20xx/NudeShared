@@ -4,6 +4,7 @@ import { startEphemeral } from '../utils/serverHelpers.mjs';
 import { app as forgeApp } from '../../../NudeForge/src/app.js';
 import fs from 'fs';
 import path from 'path';
+import { snapshotDir, cleanupNewEntries } from '../utils/tempFiles.mjs';
 import { fileURLToPath } from 'url';
 
 // Verifies extended cache policy tiers for images & dynamic directories
@@ -20,6 +21,15 @@ function expectHeader(res, name) {
 test('forge cache policy matrix for carousel/shared/dynamic directories', async () => {
   await ensureTestDb();
   const { server, url } = await startEphemeral(forgeApp);
+  // Snapshot dirs we may write into so we can clean just new files
+  const root = path.resolve(__dirname, '../../..');
+  const dirs = ['output','input','copy','NudeForge/src/public/images/carousel/thumbnails'];
+  const beforeSnapshots = {};
+  for (const d of dirs){
+    const abs = path.resolve(root, d);
+    fs.mkdirSync(abs, { recursive: true });
+    beforeSnapshots[abs] = await snapshotDir(abs);
+  }
   try {
     // Seed an image in internal carousel thumbnails dir
     const internalCarousel = path.resolve(__dirname, '../../../NudeForge/src/public/images/carousel');
@@ -77,5 +87,11 @@ test('forge cache policy matrix for carousel/shared/dynamic directories', async 
     expect(copyRes.status).toBe(200);
     const copyCache = expectHeader(copyRes, 'cache-control');
     expect(copyCache).toBe('no-store');
-  } finally { server.close(); }
+  } finally {
+    server.close();
+    // Cleanup new entries only (preserve any committed fixtures)
+    for (const abs in beforeSnapshots){
+      await cleanupNewEntries(abs, beforeSnapshots[abs]);
+    }
+  }
 }, 25000);

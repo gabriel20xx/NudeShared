@@ -3,6 +3,7 @@ import { binaryRequest } from '../utils/binaryClient.mjs';
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
+import { trackTempDir, trackTempFile, cleanupTracked } from '../utils/tempFiles.mjs';
 
 // Spins up Admin app and verifies thumbnail generation & caching.
 describe('Admin Thumbnail route', () => {
@@ -11,10 +12,10 @@ describe('Admin Thumbnail route', () => {
   // Force test to bypass sharp mock by providing a pre-existing PNG file
   delete process.env.ENABLE_REAL_SHARP; // ensure we use fallback buffer
   try { vi.resetModules(); } catch (e) { /* ignore */ }
-    const tmpBase = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'nudeadmin-out-'));
+    const tmpBase = trackTempDir(await fs.promises.mkdtemp(path.join(os.tmpdir(), 'nudeadmin-out-')));
     process.env.OUTPUT_DIR = tmpBase;
     try {
-  const inputPng = path.join(tmpBase, 'sample.png');
+  const inputPng = trackTempFile(path.join(tmpBase, 'sample.png'));
   // Minimal valid PNG header + IHDR + IEND (1x1 pixel) (not visually meaningful but valid)
   const tinyPng = Buffer.from('89504E470D0A1A0A0000000D4948445200000001000000010802000000907753DE0000000A49444154789C6360000002000100FFFF03000006000557BF2A0000000049454E44AE426082','hex');
   fs.writeFileSync(inputPng, tinyPng);
@@ -43,7 +44,7 @@ describe('Admin Thumbnail route', () => {
   expect(fs.existsSync(cached) || (res.buffer && res.buffer.length > 100)).toBe(true);
       } finally { server.close(); }
     } finally {
-  try { await fs.promises.rm(tmpBase, { recursive: true, force: true }); } catch (e) { /* cleanup ignore */ }
+      await cleanupTracked();
     }
   }, 20000);
 });
