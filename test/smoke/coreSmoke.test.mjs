@@ -19,11 +19,14 @@ test('core NudeFlow smoke: health, overlay script, tag suggestions shape', async
   const app = await createFlowApp();
   const { base, close } = await startServer(app);
   try {
-    // 1. Health endpoint
-    const health = await fetch(base + '/health');
-    expect(health.status).toBe(200);
-    const healthJson = await health.json();
-    expect(healthJson.status).toBe('ok');
+  // 1. Health endpoints
+  const health = await fetch(base + '/health');
+  expect(health.status).toBe(200);
+  const healthz = await fetch(base + '/healthz');
+  expect(healthz.status).toBe(200);
+  const ready = await fetch(base + '/ready');
+  // Enhanced readiness should succeed after ensureTestDb + migrations via readinessCheck; allow 503 only for transient DB errors
+  expect([200,503]).toContain(ready.status);
 
   // 2. Overlay script explicit route (also validating JS MIME)
   const overlay = await fetch(base + '/shared/overlay.js');

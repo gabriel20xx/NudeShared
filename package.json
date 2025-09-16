@@ -8,8 +8,14 @@
   "scripts": {
     "test": "node scripts/run-all-tests.mjs",
     "test:watch": "vitest --config vitest.config.mjs --watch",
-    "lint": "eslint \"server/**/*.js\" \"test/**/*.mjs\" --max-warnings=0",
-    "lint:fix": "eslint \"server/**/*.js\" \"test/**/*.mjs\" --fix"
+    "lint": "eslint . --ext .js,.mjs --max-warnings=0",
+    "lint:fix": "eslint . --ext .js,.mjs --fix",
+    "test:quick": "vitest run --include 'test/smoke/**/*.test.mjs' --include 'test/**/authHealth.test.mjs' --include 'test/**/forgeAuthHealth.test.mjs' --include 'test/**/flowAuthHealth.test.mjs'",
+    "test:timing": "node scripts/report-test-timings.mjs",
+    "test:skips": "node scripts/list-skipped-tests.mjs",
+  "lint:all": "node scripts/lint-all.mjs",
+  "lint:all:json": "node scripts/lint-all-json.mjs",
+  "test:session": "vitest run --include 'test/**/sessionCookieConsistency.test.mjs'"
   },
   "repository": {
     "type": "git",
@@ -42,6 +48,7 @@
     "registry": "https://npm.pkg.github.com"
   },
   "dependencies": {
+    "@gabriel20xx/nude-shared": "file:",
     "archiver": "^7.0.1",
     "better-sqlite3": "^9.6.0",
     "express": "^4.21.2",
@@ -53,10 +60,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.35.0",
+    "ejs": "^3.1.10",
     "eslint": "^9.35.0",
     "globals": "^16.4.0",
     "jsdom": "^24.0.0",
-    "vitest": "^1.6.1",
-    "ejs": "^3.1.10"
+    "supertest": "^7.1.1",
+    "vitest": "^1.6.1"
   }
 }

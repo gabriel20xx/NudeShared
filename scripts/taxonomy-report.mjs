@@ -6,8 +6,8 @@ import { runMigrations } from '../server/db/migrate.js';
 
 async function main(){
   const started = Date.now();
-  try { await initDb(); } catch(e){ /* allow runMigrations to attempt again if needed */ }
-  try { await runMigrations(); } catch(e){ /* migrations may already be applied in test harness */ }
+  try { await initDb(); } catch { /* allow runMigrations to attempt again if needed */ }
+  try { await runMigrations(); } catch { /* migrations may already be applied in test harness */ }
   // Remaining legacy categories
   const { rows: remainRows } = await query(`SELECT COUNT(1) AS c FROM media WHERE category IS NOT NULL AND category <> ''`);
   const remainingCategories = Number(remainRows?.[0]?.c||0);

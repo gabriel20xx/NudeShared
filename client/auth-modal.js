@@ -1,4 +1,5 @@
 // Shared Auth Modal (visuals only)
+/* global toast */
 (function(){
   const openBtn = document.getElementById('authOpenBtn');
   const overlay = document.getElementById('authOverlay');
@@ -96,11 +97,11 @@
           window.location.replace('/');
           return;
         }
-      } catch {}
-      try { await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); } catch {}
+  } catch { /* ignore session probe failure */ }
+  try { await fetch('/auth/logout', { method: 'POST', headers: { 'Content-Type': 'application/json' } }); } catch { /* ignore network */ }
       setLoggedIn(false);
       // Provide lightweight feedback then redirect to canonical root for ALL apps
-      try { (window.toast ? toast.info('Logged out') : console.info('[LOGOUT] Logged out')); } catch {}
+  if (window.toast && typeof toast?.info === 'function') { toast.info('Logged out'); } else { console.info('[LOGOUT] Logged out'); }
       // Unified behavior: always navigate to root. Individual apps define their own root redirect target.
       window.location.replace('/');
       return;
@@ -169,13 +170,13 @@
       if (!res.ok) throw new Error(data?.error || 'Request failed');
       setLoggedIn(true);
   if(!isBootstrapLocked()) close();
-      try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch {}
-  if(window.toast){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
+  try { window.dispatchEvent(new CustomEvent('auth:login-success', { detail: { mode: isSignup ? 'signup' : 'login' } })); } catch { /* ignore */ }
+  if(window.toast && typeof toast?.success === 'function'){ toast.success(isSignup ? 'Account created. You are now logged in.' : 'Logged in successfully.'); }
   // If inside admin app, always redirect to dashboard after login
   const isAdminApp = !!document.querySelector('.admin-main');
   if(isAdminApp){ window.location.replace('/dashboard'); }
     } catch (e) {
-      if(window.toast){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
+  if(window.toast && typeof toast?.error === 'function'){ toast.error(e?.message || 'Login failed'); } else { alert(e?.message || 'Login failed'); }
     }
   }
 
@@ -275,13 +276,13 @@
   // Initialize strictly
   overlay.hidden = true; updateHeaderButton(); activate(getInitialTabIdx());
   (async () => {
-    try { const r = await fetch('/auth/me'); if (r.ok) { const j = await r.json(); if (j && j.user) setLoggedIn(true); } } catch {}
+  try { const r = await fetch('/auth/me'); if (r.ok) { const j = await r.json(); if (j && j.user) setLoggedIn(true); } } catch { /* ignore */ }
     // Admin bootstrap detection: if no admin exists, force signup path and lock close (attribute already set server-side via disableSignup flag logic)
-    try {
+  try {
       const r2 = await fetch('/auth/bootstrap/admin-needed');
       if(r2.ok){
         const j2 = await r2.json().catch(()=>({}));
-        if(j2 && j2.adminNeeded){
+  if(j2 && j2.adminNeeded){
           // If signup panel exists, show it and hide switch; mark bootstrap attribute for lock logic
           const modalEl = overlay.querySelector('.auth-modal');
           if(modalEl) modalEl.setAttribute('data-admin-bootstrap','');
@@ -291,13 +292,13 @@
           const note = overlay.querySelector('.auth-note'); if(note){ note.textContent='Create the first admin account (required).'; }
           // Auto-open modal when landing on a protected admin page (auth-required layout ensures header present)
           setTimeout(()=>{ if(overlay.hidden) open(); }, 30);
-        } else {
+  } else {
           // Normal admin mode (signup removed if disableSignup was set server-side, else just update note)
           const note = overlay.querySelector('.auth-note');
           if(note && !signupPanel){ note.textContent='Sign up disabled for admin panel.'; }
         }
       }
-    } catch {}
+    } catch { /* ignore */ }
     // If we are on auth-required page in admin and not logged in, open modal automatically
     if(document.getElementById('authRequiredPanel') && !isLoggedIn()){
       setTimeout(()=>{ if(overlay.hidden) open(); }, 50);

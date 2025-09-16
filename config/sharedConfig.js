@@ -1,9 +1,9 @@
 // Centralized shared configuration: HTTPS, DB, shared dirs, and common UI prefs
 // Apps can import and re-export these to avoid duplication.
-try { (await import('dotenv')).config(); } catch {}
+try { (await import('dotenv')).config(); } catch { /* dotenv optional */ }
 
 function clamp(num, min, max){
-  try { num = Number(num); } catch {}
+  try { num = Number(num); } catch { /* ignore coercion */ }
   return Math.max(min, Math.min(max, Number.isFinite(num) ? num : min));
 }
 

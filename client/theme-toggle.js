@@ -11,7 +11,7 @@
     if(btn){ btn.addEventListener('click', ()=>{
       const cur = root.getAttribute('data-theme')||'dark';
       const next = cur==='dark'?'light':'dark';
-      try{ localStorage.setItem(storageKey,next);}catch(_e){}
+  try { localStorage.setItem(storageKey,next); } catch { /* ignore persistence failure */ }
       apply(next);
     });}
   }

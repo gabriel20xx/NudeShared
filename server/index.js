@@ -17,3 +17,7 @@ export * from './media/sharedMediaService.js';
 export * from './http/sharedStatic.js';
 export * from './http/cachePolicyEndpoint.js';
 
+// App hardening utilities
+export * from './middleware/hardening.js';
+export * from './middleware/sessionFactory.js';
+

@@ -163,3 +163,22 @@ export async function closeDb() {
 // Optional re-export of migrations to keep legacy test imports stable.
 // NOTE: Prefer importing runMigrations directly from migrate.js in new code.
 export { runMigrations } from './migrate.js';
+
+// Guard to prevent redundant migrations in a single process (tests spin up many apps)
+let __migrationsDone = false;
+export async function ensureDatabaseReady({ silentMigrations = false } = {}) {
+  await initDb();
+  if (!__migrationsDone) {
+    try {
+      if (silentMigrations) {
+        await (await import('./migrate.js')).runMigrations({ suppressLog: true });
+      } else {
+        await (await import('./migrate.js')).runMigrations();
+      }
+    } catch (e) {
+      if (!silentMigrations) throw e; // in silent mode swallow
+    }
+    __migrationsDone = true;
+  }
+  return getDb();
+}

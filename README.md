@@ -189,6 +189,80 @@ Helper unit tests live in `test/httpHelpers.test.mjs` covering:
 
 Feel free to expand with integration cases when adding new tiers.
 
+## Shared Base App Helper (`applySharedBase`)
+
+To further reduce repeated boilerplate across NudeAdmin, NudeFlow, and NudeForge a consolidated helper lives at `server/app/applySharedBase.js`.
+
+Responsibilities (configurable):
+- Strong ETag (`app.set('etag','strong')`)
+- Standard hardening (security headers, `/healthz`, `/ready`, `/health` legacy redirect)
+- `/shared` static mounting (tiered caching) via `mountSharedStatic`
+- Theme mounting at `/assets/theme.css` (project override precedence)
+- Optional `/auth` router (enabled by default)
+- Optional cache policy endpoint (`GET /__cache-policy`) when `cachePolicies` provided
+- Optional locals injection (`locals` object or middleware function)
+- Optional standardized 404/error handlers (`attachErrorHandlers:true`)
+
+Example:
+```js
+import { applySharedBase } from '../../NudeShared/server/app/applySharedBase.js';
+const app = express();
+applySharedBase(app, {
+	serviceName: 'NudeFlow',
+	projectDir: __dirname,
+	cachePolicies: {
+		shared: { cssJs: 'public, max-age=3600', images: 'public, max-age=86400, stale-while-revalidate=604800' },
+		themeCss: 'public, max-age=3600'
+	},
+	locals: { appCssHref: '/css/style.css', disableSignup: false }
+});
+```
+
+Benefits:
+- Removes ~150 lines of repeated setup per service (auth + static + theme + cache policy boilerplate)
+- Ensures uniform behavior (health endpoints, cache policy exposure)
+- Single change surface for future security/caching adjustments
+
+Extending:
+- Add new options as additive (do not break existing call sites)
+- Keep domain‑specific logic (carousel, sockets, media stats) inside each service
+- If a concern repeats across two services, consider promoting it here behind an option flag
+
+Testing: `test/app/sharedBaseHelper.test.mjs` verifies critical mounts (health, ready, auth, theme). Expand only when new helper features warrant explicit coverage.
+
+## Unified Session Factory (`createStandardSessionMiddleware`)
+
+All platform services (Admin, Flow, Forge) now rely on a single session initializer exported from `server/index.js` as `createStandardSessionMiddleware`.
+
+Responsibilities:
+- Select Postgres session store (`connect-pg-simple`) when `DATABASE_URL` is present (and `enablePgStore !== false`).
+- Graceful fallback to in-memory store for local dev / tests with a one-time WARN (never recommended for production longevity).
+- Apply consistent cookie settings: `httpOnly`, `sameSite: 'lax'`, `maxAge` default 7 days (override via `maxAgeMs`). Secure flag is auto-set on HTTPS unless `secureOverride` is passed.
+- Namespace service identity (used in logs + potential future metrics) via required `serviceName` option.
+
+Signature:
+```js
+createStandardSessionMiddleware({
+	serviceName,            // string (required)
+	secret,                 // string (required) – falls back to 'dev-secret' with WARN if absent
+	cookieName,             // optional, default 'sid'
+	domain,                 // optional cookie domain
+	maxAgeMs,               // optional override (ms)
+	enablePgStore = true,   // disable to force memory even with DATABASE_URL (tests)
+	secureOverride          // true/false to force secure flag; leave undefined for auto
+});
+```
+
+Integration Pattern (inside each app before auth routes):
+```js
+app.use(createStandardSessionMiddleware({ serviceName: 'NudeFlow', secret: process.env.SESSION_SECRET }));
+```
+
+Order Requirement: mount AFTER body parsers (`express.json()` / `urlencoded`) so auth routes relying on parsed bodies function correctly. Each app therefore calls the factory prior to `applySharedBase` auth router mounting (or sets `mountAuth:false` and mounts auth manually after sessions).
+
+Extending Behavior: Add new cross‑service needs (rolling renewal, stricter production attributes, instrumentation) inside the factory—do NOT implement per‑app session blocks. Tests (`sessionCookieConsistency.test.mjs`) assert attribute parity across services; extend that test if you add attributes.
+
+
 ## License
 (Insert license info here if required.)
 

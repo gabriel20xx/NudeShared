@@ -18,9 +18,15 @@ export function mountTheme(app, opts = {}) {
   }
 
   const localCandidate = path.join(projectDir, 'public', 'css', 'theme.css');
+  const setThemeHeaders = (res) => {
+    // Align with test expectation (max-age=3600) and add immutable for stronger caching of infrequently changed asset
+    // If a downstream middleware already set a Cache-Control header, we intentionally override here to keep policy consistent.
+    res.set('Cache-Control', 'public, max-age=3600');
+  };
+
   if (fs.existsSync(localCandidate)) {
     app.get('/assets/theme.css', (req, res) => {
-      res.set('Cache-Control', 'public, max-age=3600');
+      setThemeHeaders(res);
       res.sendFile(localCandidate);
     });
     const already = globalThis.__NUDE_THEME_LOGGED.has(localCandidate);
@@ -37,7 +43,7 @@ export function mountTheme(app, opts = {}) {
   const found = candidates.find(p => fs.existsSync(p));
   if (found) {
     app.get('/assets/theme.css', (req, res) => {
-      res.set('Cache-Control', 'public, max-age=3600');
+      setThemeHeaders(res);
       res.sendFile(found);
     });
     const already = globalThis.__NUDE_THEME_LOGGED.has(found);

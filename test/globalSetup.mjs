@@ -1,20 +1,18 @@
-import { beforeAll, afterAll, vi } from 'vitest';
+import { vi } from 'vitest';
 import { initDb, closeDb } from '../server/db/db.js';
 import { runMigrations } from '../server/db/migrate.js';
 
-// Ensure test environment flag
+// Environment flags (set early)
 process.env.NODE_ENV = process.env.NODE_ENV || 'test';
-// Suppress duplicate migration log lines as early as possible
 process.env.SILENCE_MIGRATION_LOGS = 'true';
+process.env.SKIP_WEBSOCKET = process.env.SKIP_WEBSOCKET || 'true';
+process.env.SKIP_QUEUE_PROCESSING = process.env.SKIP_QUEUE_PROCESSING || 'true';
+process.env.SKIP_CAROUSEL_THUMBS = process.env.SKIP_CAROUSEL_THUMBS || 'true';
 
-beforeAll(async () => {
-  await initDb();
-  try { await runMigrations(); } catch { /* noop */ }
-  // Provide broad skips so Forge/Flow apps can import without side-effects
-  process.env.SKIP_WEBSOCKET = process.env.SKIP_WEBSOCKET || 'true';
-  process.env.SKIP_QUEUE_PROCESSING = process.env.SKIP_QUEUE_PROCESSING || 'true';
-  process.env.SKIP_CAROUSEL_THUMBS = process.env.SKIP_CAROUSEL_THUMBS || 'true';
-  // Global sharp mock unless explicitly opted out
+// Top-level async init (avoid beforeAll hook reliance so setupFiles stays framework-agnostic)
+const __nudeSetup = (async () => {
+  try { await initDb(); } catch { /* ignore init */ }
+  try { await runMigrations(); } catch { /* migrations may already be applied */ }
   if (!(process.env.ENABLE_REAL_SHARP === '1' || process.env.FORCE_REAL_SHARP === '1')) {
     vi.mock('sharp', () => {
       const chain = () => ({
@@ -24,10 +22,9 @@ beforeAll(async () => {
       return { default: chain, __esModule: true };
     });
   }
-});
+})();
 
-afterAll(async () => {
-  await closeDb();
-});
+// Ensure closeDb invoked at process exit
+process.on('exit', async () => { try { await closeDb(); } catch { /* ignore */ } });
 
-export default {}; // Vitest globalSetup module expectation
+export default __nudeSetup;

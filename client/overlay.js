@@ -19,7 +19,7 @@
         target = overlay.querySelector('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])');
       }
       if(target && typeof target.focus === 'function') {
-        try { target.focus(); } catch(_) {}
+  try { target.focus(); } catch { /* ignore focus error */ }
       }
     }
     function showSoon(){
@@ -45,7 +45,7 @@
       overlay.setAttribute('hidden','');
       console.info('[ACTION] overlay_hide', overlayId);
       if(restoreFocus && lastActive && typeof lastActive.focus === 'function') {
-        try { lastActive.focus(); } catch(_) {}
+  try { lastActive.focus(); } catch { /* ignore */ }
         lastActive = null;
       }
     }
@@ -56,7 +56,7 @@
         const trigger = lastActive;
         hide();
         if(trigger && typeof trigger.focus === 'function') {
-          try { trigger.focus(); } catch(_) {}
+  try { trigger.focus(); } catch { /* ignore */ }
         }
         return;
       }

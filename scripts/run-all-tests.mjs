@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from 'child_process';
+import { createRequire } from 'module';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -33,7 +34,7 @@ function run(cmd, args, cwd, { forceNoShell = false } = {}){
 function log(...a){ console.log('[test-runner]', ...a); }
 
 function removeIfExists(p){
-  try { if(fs.existsSync(p)) { fs.rmSync(p, { recursive:true, force:true }); return true; } } catch {} return false;
+  try { if(fs.existsSync(p)) { fs.rmSync(p, { recursive:true, force:true }); return true; } } catch { /* ignore remove errors */ } return false;
 }
 
 function sweepTempArtifacts(){
@@ -56,7 +57,7 @@ function sweepTempArtifacts(){
         if(removeIfExists(full)) removed.push(full);
       }
     }
-  } catch {}
+  } catch { /* ignore tmp scan */ }
   // CWD scan
   try {
     for(const name of fs.readdirSync(cwd)){
@@ -65,18 +66,18 @@ function sweepTempArtifacts(){
         if(removeIfExists(full)) removed.push(full);
       }
     }
-  } catch {}
+  } catch { /* ignore cwd scan */ }
   // Per-app stray .thumbs inside test ephemeral roots (shallow search)
   const searchDirs = [cwd];
   for(const dir of searchDirs){
-    try {
+  try {
       for(const name of fs.readdirSync(dir)){
         if(name === '.thumbs'){
           const full = path.join(dir, name);
           if(removeIfExists(full)) removed.push(full);
         }
       }
-    } catch {}
+  } catch { /* ignore nested scan */ }
   }
   log('Temp artifact sweep complete', { removed: removed.length, ms: Date.now()-started });
 }
@@ -86,7 +87,7 @@ function maybeRemoveTestsDir(){
     const testsPath = path.join(sharedRoot, 'test');
     if(fs.existsSync(testsPath)){
       log('NUDE_REMOVE_TESTS_AFTER_RUN=1 -> removing test directory');
-      try { fs.rmSync(testsPath, { recursive:true, force:true }); } catch {}
+  try { fs.rmSync(testsPath, { recursive:true, force:true }); } catch { /* ignore removal */ }
     }
   }
 }
@@ -94,17 +95,29 @@ function maybeRemoveTestsDir(){
 (async () => {
   try {
     log('Running unified Vitest suite (NudeShared/test)...');
-    await run('npx', ['vitest','run','--config','vitest.config.mjs','--reporter','basic'], sharedRoot);
+    // Resolve local vitest binary instead of relying on npx (more reliable on Windows / CI)
+    const require = createRequire(import.meta.url);
+    let vitestBin;
+    try {
+      const vitestPkgPath = require.resolve('vitest/package.json');
+      const vitestPkg = require('vitest/package.json');
+      const binDir = path.dirname(vitestPkgPath);
+      vitestBin = vitestPkg?.bin?.vitest ? path.join(binDir, vitestPkg.bin.vitest) : path.join(binDir, 'dist', 'cli.js');
+    } catch (e) {
+      console.error('[test-runner] Failed to resolve vitest binary:', e.message);
+      process.exit(1);
+    }
+    await run(process.execPath, [vitestBin, 'run','--config','vitest.config.mjs','--reporter','basic'], sharedRoot, { forceNoShell: true });
     log('Vitest execution finished successfully.');
     sweepTempArtifacts();
     // Always run deep repo artifact cleanup unless disabled
     await runRepoArtifactCleanup();
     maybeRemoveTestsDir();
     log('All tests completed (with artifact cleanup).');
-  } catch (e) {
+  } catch {
     sweepTempArtifacts();
     await runRepoArtifactCleanup(true);
-    console.error('Test run failed:', e.message);
+    console.error('Test run failed');
     process.exit(1);
   }
 })();
@@ -132,7 +145,7 @@ async function runRepoArtifactCleanup(isFailure=false){
   // Force no shell to prevent Windows path splitting at spaces when invoking node script
   const out = await run(process.execPath, [cleanupScript], path.dirname(cleanupScript), { forceNoShell: true });
       return out;
-    } catch(err){
-      console.error('[cleanup] Repository artifact cleanup failed:', err.message);
+  } catch(err){
+      console.error('[cleanup] Repository artifact cleanup failed:', err && err.message);
     }
 }
