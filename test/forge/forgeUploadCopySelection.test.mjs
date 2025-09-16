@@ -12,6 +12,7 @@ describe('Forge upload-copy on selection', () => {
   const { UPLOAD_COPY_DIR } = await import('../../../NudeForge/src/config/config.js');
   const { server, url } = await startEphemeral(forgeApp);
   const copyDir = UPLOAD_COPY_DIR; // authoritative directory used by app
+    let created = [];
     try {
       const before = new Set((fs.existsSync(copyDir)? fs.readdirSync(copyDir): []));
       const boundary = '----vtform'+Math.random().toString(16).slice(2);
@@ -42,7 +43,15 @@ describe('Forge upload-copy on selection', () => {
       const diff = afterNames.filter(f=> !before.has(f));
       expect(diff.length).toBeGreaterThanOrEqual(1);
       expect(afterSet.has(json.filename)).toBe(true);
+      created = diff; // track new files for cleanup
     } finally {
+      // Per-test cleanup
+      try {
+        for (const f of created) {
+          const p = path.join(copyDir, f);
+            if (fs.existsSync(p)) fs.unlinkSync(p);
+        }
+      } catch { /* ignore cleanup errors */ }
       server.close();
     }
   });

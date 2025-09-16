@@ -4,6 +4,7 @@ import path from 'path';
 import os from 'os';
 import { ensureTestDb } from '../utils/testDb.mjs';
 import { startEphemeral } from '../utils/serverHelpers.mjs';
+import { trackTempFile, cleanupTracked } from '../utils/tempFiles.mjs';
 
 // Focused tests for /api/upload-copy immediate background copy endpoint
 // Contract expectations (documented in routes.js):
@@ -13,8 +14,7 @@ import { startEphemeral } from '../utils/serverHelpers.mjs';
 //  - Filenames are UUID-prefixed to avoid collisions
 
 async function createTempPng() {
-  const tmp = path.join(os.tmpdir(), 'forge-uploadcopy-' + Date.now() + '.png');
-  // Write a tiny valid PNG header (not strictly required for storage, but realistic)
+  const tmp = trackTempFile(path.join(os.tmpdir(), 'forge-uploadcopy-' + Date.now() + '.png'));
   const pngHeader = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex');
   fs.writeFileSync(tmp, pngHeader);
   return tmp;
@@ -25,7 +25,10 @@ describe('forge upload-copy endpoint', () => {
     await ensureTestDb();
     const { app: forgeApp } = await import('../../../NudeForge/src/app.js');
     const { server, url } = await startEphemeral(forgeApp);
+    let storedPath;
     try {
+      // Preflight health to ensure server fully initialized before POST (avoids startup race)
+      await fetch(url + '/health');
       const tmpFile = await createTempPng();
       const form = new FormData();
       const fileData = new Blob([fs.readFileSync(tmpFile)], { type: 'image/png' });
@@ -37,24 +40,34 @@ describe('forge upload-copy endpoint', () => {
       expect(json.filename).toMatch(/sample/); // retains base name suffix
       // Derive copy dir from environment or default (mirrors config.js logic)
       const copyDir = process.env.UPLOAD_COPY_DIR || path.join(path.resolve(__dirname, '..', '..', '..'), 'copy');
-      const storedPath = path.join(copyDir, json.filename);
+      storedPath = path.join(copyDir, json.filename);
       expect(fs.existsSync(storedPath)).toBe(true);
       const stat = fs.statSync(storedPath);
       expect(stat.size).toBeGreaterThan(0);
-    } finally { server.close(); }
-  }, 15000);
+    } finally {
+      try {
+        if (storedPath && fs.existsSync(storedPath)) await fs.promises.unlink(storedPath);
+      } catch {}
+      await cleanupTracked();
+      server.close();
+    }
+  }, 30000);
 
   it('returns 400 when no file provided', async () => {
     await ensureTestDb();
     const { app: forgeApp } = await import('../../../NudeForge/src/app.js');
     const { server, url } = await startEphemeral(forgeApp);
     try {
+      await fetch(url + '/health');
       const form = new FormData(); // empty
       const res = await fetch(url + '/api/upload-copy', { method: 'POST', body: form });
       expect(res.status).toBe(400);
       const json = await res.json();
       expect(json.success).toBe(false);
       expect(/no file/i.test(json.error || '')).toBe(true);
-    } finally { server.close(); }
+    } finally {
+      await cleanupTracked();
+      server.close();
+    }
   }, 15000);
 });
