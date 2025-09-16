@@ -8,8 +8,7 @@ import express from 'express';
 import session from 'express-session';
 import fetch from 'node-fetch';
 import http from 'http';
-import { fileURLToPath } from 'url';
-import { initDb, closeDb, query } from '../server/db/db.js';
+import { closeDb, query } from '../server/db/db.js';
 import { ensureTestDb } from './utils/testDb.mjs';
 import { buildAuthRouter } from '../server/api/authRoutes.js';
 

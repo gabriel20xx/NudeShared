@@ -13,7 +13,7 @@ test('admin stats metrics null when no generation data', async () => {
   const { server, url: base } = await startEphemeral(adminApp);
   try {
   // Purge any existing generation metrics to simulate empty state
-  try { await query('DELETE FROM media_metrics'); } catch (e) { /* ignore absence */ }
+  try { await query('DELETE FROM media_metrics'); } catch { /* ignore absence */ }
     const admin = await createAdminUser(base, { email: 'metrics_empty_'+Date.now()+'@ex.com', password:'pw12345' });
     const stats = await fetchStats(base, admin.cookie, 'period=all');
     const metrics = stats.json?.metrics || {};

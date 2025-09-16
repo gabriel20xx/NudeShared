@@ -10,20 +10,7 @@ async function startServer(app){
   });
 }
 
-async function authAsTestUser(agent){
-  // Seed user directly then set session manually (simpler than full auth flow)
-  const { rows } = await query('SELECT id FROM users LIMIT 1');
-  let userId = rows[0]?.id;
-  if(!userId){
-    await query("INSERT INTO users (email, password_hash) VALUES ('test@example.com','hash')");
-    const r2 = await query('SELECT id FROM users WHERE email = ? OR email = $1 LIMIT 1', ['test@example.com']);
-    userId = r2.rows[0].id;
-  }
-  // Fake session cookie (express-session default cookie name = connect.sid) is complex (signed); easier path: temporarily bypass session need by stubbing in request? For now we skip since endpoints require session.
-  // Instead, directly insert a session row when using PG store would be needed; for SQLite fallback we simulate by monkeypatching req.session in test via superagent replacement.
-  // Simpler: We'll temporarily insert media + tag via direct helper, then call API unauth expecting 401 to validate guard.
-  return userId;
-}
+// Removed unused authAsTestUser helper
 
 // Basic test ensures adding a tag sets contributor_user_id
 describe('Flow media tag add', () => {

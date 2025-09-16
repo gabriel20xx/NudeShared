@@ -43,12 +43,12 @@ async function ensureUsersTable() {
     await query(`CREATE INDEX IF NOT EXISTS users_email_idx ON users (email);`);
     // SQLite lacks IF NOT EXISTS for ADD COLUMN on many builds; try individually and ignore duplication errors
     const addCol = async (sql) => {
-      try { await query(sql); } catch (e) { /* ignore duplicate column errors */ }
+  try { await query(sql); } catch { /* ignore duplicate column errors */ }
     };
   await addCol(`ALTER TABLE users ADD COLUMN username TEXT`);
   // Enforce uniqueness on username (case-insensitive for ASCII)
-  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username COLLATE NOCASE)`); } catch (e) { /* optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS users_username_idx ON users (username)`); } catch (e) { /* optional */ }
+  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS users_username_unique ON users (username COLLATE NOCASE)`); } catch { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS users_username_idx ON users (username)`); } catch { /* optional */ }
     await addCol(`ALTER TABLE users ADD COLUMN avatar_url TEXT`);
       await addCol(`ALTER TABLE users ADD COLUMN bio TEXT`);
       await addCol(`ALTER TABLE users ADD COLUMN totp_secret TEXT`);
@@ -188,8 +188,8 @@ async function ensureMediaViewDownloadTables(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE INDEX IF NOT EXISTS media_views_key_idx ON media_views (media_key);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS media_views_user_idx ON media_views (user_id);`);} catch (e) { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_views_key_idx ON media_views (media_key);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_views_user_idx ON media_views (user_id);`);} catch { /* index optional */ }
     await query(`
       CREATE TABLE IF NOT EXISTS media_downloads (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -199,8 +199,8 @@ async function ensureMediaViewDownloadTables(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_key_idx ON media_downloads (media_key);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_user_idx ON media_downloads (user_id);`);} catch (e) { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_key_idx ON media_downloads (media_key);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_downloads_user_idx ON media_downloads (user_id);`);} catch { /* index optional */ }
     return;
   }
 }
@@ -231,8 +231,8 @@ async function ensureMediaViewSessionsTable(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_key_idx ON media_view_sessions (media_key);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_user_idx ON media_view_sessions (user_id);`);} catch (e) { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_key_idx ON media_view_sessions (media_key);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_view_sessions_user_idx ON media_view_sessions (user_id);`);} catch { /* index optional */ }
     return;
   }
 }
@@ -288,10 +288,10 @@ async function ensureMediaTable(){
     `);
     await query(`CREATE INDEX IF NOT EXISTS media_user_idx ON media (user_id);`);
     await query(`CREATE INDEX IF NOT EXISTS media_key_idx ON media (media_key);`);
-    try { await query(`CREATE INDEX IF NOT EXISTS media_category_idx ON media (category);`); } catch (e) {
+  try { await query(`CREATE INDEX IF NOT EXISTS media_category_idx ON media (category);`); } catch {
       // Index creation failure is non-fatal; continue
     }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_active_idx ON media (active);`); } catch (e) {
+  try { await query(`CREATE INDEX IF NOT EXISTS media_active_idx ON media (active);`); } catch {
       // Index creation failure is non-fatal; continue
     }
     return;
@@ -354,12 +354,12 @@ async function ensureMediaTagsTable(){
         UNIQUE (media_id, tag)
       );
     `);
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_media_idx ON media_tags (media_id);`); } catch(e) { /* optional */ }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_tag_idx ON media_tags (tag);`); } catch(e) { /* optional */ }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_lower_tag_idx ON media_tags (lower(tag));`); } catch(e) { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tags_media_idx ON media_tags (media_id);`); } catch { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tags_tag_idx ON media_tags (tag);`); } catch { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tags_lower_tag_idx ON media_tags (lower(tag));`); } catch { /* optional */ }
     // Attempt to add contributor_user_id if missing (SQLite lacks IF NOT EXISTS for add column in some versions)
-    try { await query(`ALTER TABLE media_tags ADD COLUMN contributor_user_id INTEGER`); } catch(e) { /* ignore duplicate column */ }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tags_contributor_idx ON media_tags (contributor_user_id);`); } catch(e) { /* optional */ }
+  try { await query(`ALTER TABLE media_tags ADD COLUMN contributor_user_id INTEGER`); } catch { /* ignore duplicate column */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tags_contributor_idx ON media_tags (contributor_user_id);`); } catch { /* optional */ }
     return;
   }
 }
@@ -396,9 +396,9 @@ async function ensureMediaTagVotesTable(){
         UNIQUE (media_id, tag, user_id)
       );
     `);
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_media_idx ON media_tag_votes (media_id);`); } catch(e) { /* optional */ }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_tag_idx ON media_tag_votes (tag);`); } catch(e) { /* optional */ }
-    try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_user_idx ON media_tag_votes (user_id);`); } catch(e) { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_media_idx ON media_tag_votes (media_id);`); } catch { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_tag_idx ON media_tag_votes (tag);`); } catch { /* optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_tag_votes_user_idx ON media_tag_votes (user_id);`); } catch { /* optional */ }
     return;
   }
 }
@@ -422,8 +422,8 @@ async function backfillCategoryTags(){
         WHERE m.category IS NOT NULL AND m.category <> '';
       `);
     }
-  } catch(e){
-    Logger.warn(MODULE, 'Category backfill skipped', { error: e.message });
+  } catch {
+    Logger.warn(MODULE, 'Category backfill skipped');
   }
 }
 // NOTE: Future category removal sequence will add a new function here (e.g., softNullLegacyCategory()) and invoke at end of runMigrations() once guard flag present.
@@ -464,8 +464,8 @@ async function softNullLegacyCategory(){
       `);
     }
     Logger.info(MODULE, 'Soft-null legacy category complete');
-  } catch(e){
-    Logger.warn(MODULE, 'Soft-null legacy category failed', { error: e.message });
+  } catch {
+    Logger.warn(MODULE, 'Soft-null legacy category failed');
   }
 }
 
@@ -495,8 +495,8 @@ async function ensureMediaMetricsTable(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_created_idx ON media_metrics (created_at);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_key_idx ON media_metrics (media_key);`);} catch (e) { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_created_idx ON media_metrics (created_at);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS media_metrics_key_idx ON media_metrics (media_key);`);} catch { /* index optional */ }
     return;
   }
 }
@@ -539,8 +539,8 @@ async function ensurePlaylistsTables(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlists_user_lowername_unique ON playlists (user_id, lower(name));`); } catch (e) { /* case-insensitive uniqueness index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists (user_id);`); } catch (e) { /* index optional */ }
+  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlists_user_lowername_unique ON playlists (user_id, lower(name));`); } catch { /* case-insensitive uniqueness index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS playlists_user_idx ON playlists (user_id);`); } catch { /* index optional */ }
     await query(`
       CREATE TABLE IF NOT EXISTS playlist_items (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -550,9 +550,9 @@ async function ensurePlaylistsTables(){
         created_at TEXT NOT NULL DEFAULT (datetime('now'))
       );
     `);
-  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlist_items_unique ON playlist_items (playlist_id, media_key);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_playlist_idx ON playlist_items (playlist_id);`);} catch (e) { /* index optional */ }
-  try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_media_key_idx ON playlist_items (media_key);`);} catch (e) { /* index optional */ }
+  try { await query(`CREATE UNIQUE INDEX IF NOT EXISTS playlist_items_unique ON playlist_items (playlist_id, media_key);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_playlist_idx ON playlist_items (playlist_id);`);} catch { /* index optional */ }
+  try { await query(`CREATE INDEX IF NOT EXISTS playlist_items_media_key_idx ON playlist_items (media_key);`);} catch { /* index optional */ }
     return;
   }
 }

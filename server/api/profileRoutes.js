@@ -39,7 +39,7 @@ export function buildProfileRouter(options={}){
 
   // Avatar storage
   const avatarsDir = customAvatarsDir || path.resolve(process.cwd(), 'avatars');
-  try { fs.mkdirSync(avatarsDir,{recursive:true}); } catch (e) { /* ignore mkdir race */ }
+  try { fs.mkdirSync(avatarsDir,{recursive:true}); } catch { /* ignore mkdir race */ }
   const storage = multer.diskStorage({
     destination: (req,file,cb)=> cb(null, avatarsDir),
     filename: (req,file,cb)=>{ const ext = path.extname(file.originalname||'')||'.png'; cb(null, `u${req.session?.user?.id||'anon'}_${Date.now()}${ext}`); }
@@ -56,7 +56,7 @@ export function buildProfileRouter(options={}){
       if(!u) return res.json(U.createSuccessResponse({ username:'Anonymous', bio:'No bio yet.', mfaEnabled:false }, 'Profile retrieved'));
       const profile = { id:u.id, email:u.email, username:u.username||'Anonymous', bio:u.bio||'', profilePicture: u.avatar_url || '/images/default-avatar.png', mfaEnabled: !!u.mfa_enabled };
       return res.json(U.createSuccessResponse(profile,'Profile retrieved'));
-    }catch(e){ U.errorLog?.('PROFILE','get','Failed', e); return res.status(500).json(U.createErrorResponse('Failed to load profile')); }
+  }catch { U.errorLog?.('PROFILE','get','Failed'); return res.status(500).json(U.createErrorResponse('Failed to load profile')); }
   });
 
   // Profile update
@@ -82,7 +82,7 @@ export function buildProfileRouter(options={}){
       await query(`UPDATE users SET ${sets} WHERE id=$${fields.length+1}`,[...values, uid]);
       if(fields.includes('email')) req.session.user.email = values[fields.indexOf('email')];
       return res.json(U.createSuccessResponse({},'Profile updated'));
-    }catch(e){ U.errorLog?.('PROFILE','update','Failed',e); return res.status(500).json(U.createErrorResponse('Failed to update profile')); }
+  }catch { U.errorLog?.('PROFILE','update','Failed'); return res.status(500).json(U.createErrorResponse('Failed to update profile')); }
   });
 
   // Change password
@@ -97,7 +97,7 @@ export function buildProfileRouter(options={}){
       const pw = hashPassword(newPassword);
       await query('UPDATE users SET password_hash=$1 WHERE id=$2',[pw, uid]);
       return res.json(U.createSuccessResponse({},'Password updated'));
-    }catch(e){ U.errorLog?.('PROFILE','password','Failed',e); return res.status(500).json(U.createErrorResponse('Failed to change password')); }
+  }catch { U.errorLog?.('PROFILE','password','Failed'); return res.status(500).json(U.createErrorResponse('Failed to change password')); }
   });
 
   // Upload avatar
@@ -108,7 +108,7 @@ export function buildProfileRouter(options={}){
       const rel = `/images/avatars/${req.file.filename}`;
       await query('UPDATE users SET avatar_url=$1 WHERE id=$2',[rel, uid]);
       return res.json(U.createSuccessResponse({ profilePicture: rel }, 'Avatar updated'));
-    }catch(e){ U.errorLog?.('PROFILE','avatar','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  }catch { U.errorLog?.('PROFILE','avatar','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // MFA TOTP flows
@@ -121,7 +121,7 @@ export function buildProfileRouter(options={}){
       const qr = await qrcode.toDataURL(otpauth);
       req.session.pendingTotp = { uid, secret };
       return res.json(U.createSuccessResponse({ otpauth, qr }, 'TOTP initiated'));
-    }catch(e){ U.errorLog?.('PROFILE','totp:init','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  }catch { U.errorLog?.('PROFILE','totp:init','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
   router.post('/security/totp/verify', ensureAuth, async (req,res)=>{
     try {
@@ -132,7 +132,7 @@ export function buildProfileRouter(options={}){
       await query('UPDATE users SET totp_secret=$1, mfa_enabled=$2 WHERE id=$3',[pend.secret, true, pend.uid]);
       delete req.session.pendingTotp;
       return res.json(U.createSuccessResponse({ enabled:true }, 'MFA enabled'));
-    }catch(e){ U.errorLog?.('PROFILE','totp:verify','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  }catch { U.errorLog?.('PROFILE','totp:verify','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
   router.post('/security/totp/disable', ensureAuth, async (req,res)=>{
     try {
@@ -142,7 +142,7 @@ export function buildProfileRouter(options={}){
       if(!row || !verifyPassword(currentPassword||'', row.password_hash)) return res.status(401).json(U.createErrorResponse('Current password incorrect'));
       await query('UPDATE users SET totp_secret=NULL, mfa_enabled=$1 WHERE id=$2',[false, uid]);
       return res.json(U.createSuccessResponse({ enabled:false }, 'MFA disabled'));
-    }catch(e){ U.errorLog?.('PROFILE','totp:disable','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  }catch { U.errorLog?.('PROFILE','totp:disable','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   return router;

@@ -5,7 +5,7 @@
 // Provide announce(msg) for polite updates and announceError(msg) for errors (also logs console + optional toast).
 
 (function(global){
-  function createOverlayController({ overlayId, liveId, showDelay=250, toast, focusSelector, restoreFocus=true } = {}){
+  function createOverlayController({ overlayId, liveId, showDelay=250, toast, focusSelector, restoreFocus=true, escToClose=true, trapFocus=true } = {}){
     const overlay = document.getElementById(overlayId);
     const live = document.getElementById(liveId);
     let timer;
@@ -27,6 +27,8 @@
       timer = setTimeout(()=>{
         if(!overlay) return;
         if(restoreFocus) { lastActive = document.activeElement; }
+        if(!overlay.getAttribute('role')) overlay.setAttribute('role','dialog');
+        overlay.setAttribute('aria-modal','true');
         overlay.removeAttribute('hidden');
         overlay.classList.add('active');
         overlay.setAttribute('aria-hidden','false');
@@ -47,10 +49,33 @@
         lastActive = null;
       }
     }
+    function onKey(e){
+      if(!overlay || overlay.hasAttribute('hidden')) return;
+      if(e.key === 'Escape' && escToClose){
+        // Attempt to refocus original trigger immediately after hiding
+        const trigger = lastActive;
+        hide();
+        if(trigger && typeof trigger.focus === 'function') {
+          try { trigger.focus(); } catch(_) {}
+        }
+        return;
+      }
+      if(trapFocus && e.key === 'Tab'){
+        const focusables = [...overlay.querySelectorAll('button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled && el.offsetParent !== null);
+        if(focusables.length){
+          const first = focusables[0];
+          const last = focusables[focusables.length-1];
+          if(e.shiftKey && document.activeElement === first){ e.preventDefault(); last.focus(); }
+          else if(!e.shiftKey && document.activeElement === last){ e.preventDefault(); first.focus(); }
+        }
+      }
+    }
+    document.addEventListener('keydown', onKey);
     function announce(msg){ if(live){ live.textContent = msg; }}
     function announceError(msg){ if(live){ live.textContent = msg; } if(toast && toast.error){ toast.error(msg); } console.error('[OVERLAY_ERROR]', msg); }
     async function runWithOverlay(fn){ showSoon(); try { const r = await fn(); hide(); return r; } catch(e){ hide(); announceError(e.message||'Load failed'); throw e; } }
-    return { showSoon, hide, announce, announceError, runWithOverlay };
+    function destroy(){ document.removeEventListener('keydown', onKey); }
+    return { showSoon, hide, announce, announceError, runWithOverlay, destroy };
   }
   global.NCOverlay = { createOverlayController };
 })(window);

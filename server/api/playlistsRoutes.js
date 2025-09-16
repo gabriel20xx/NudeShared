@@ -34,7 +34,7 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       const uid = req.session.user.id;
       const { rows } = await query('SELECT id, name, created_at FROM playlists WHERE user_id=$1 ORDER BY created_at DESC',[uid]);
       return res.json(U.createSuccessResponse({ playlists: rows||[] }, 'Playlists'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','list','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','list','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // Summary with counts and preview thumbnail
@@ -53,13 +53,13 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
             const info = mapMediaKeyToInfo(prev[0].media_key);
             preview = info.thumbnail;
           }
-        } catch (e) {
+  } catch {
           // Ignore preview fetch failures
         }
         out.push({ id: row.id, name: row.name, item_count: Number(row.item_count||0), preview });
       }
       return res.json(U.createSuccessResponse({ playlists: out }, 'Playlists summary'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','summary','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','summary','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // Playlist meta
@@ -69,7 +69,7 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       const { rows } = await query('SELECT id, name, created_at FROM playlists WHERE id=$1 AND user_id=$2',[id, uid]);
       if(!rows || !rows.length) return res.status(404).json(U.createErrorResponse('Not found'));
       return res.json(U.createSuccessResponse({ playlist: rows[0] }, 'Playlist meta'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','meta','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','meta','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // Create a playlist
@@ -82,7 +82,7 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       await query('INSERT INTO playlists (user_id, name) VALUES ($1,$2) ON CONFLICT DO NOTHING',[uid, name]);
       const { rows } = await query('SELECT id, name, created_at FROM playlists WHERE user_id=$1 AND lower(name)=lower($2) LIMIT 1',[uid, name]);
       return res.json(U.createSuccessResponse({ playlist: rows?.[0] || null }, 'Playlist created'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','create','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','create','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // Delete a playlist
@@ -96,7 +96,7 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       await query('DELETE FROM playlist_items WHERE playlist_id=$1',[id]);
       await query('DELETE FROM playlists WHERE id=$1',[id]);
       return res.json(U.createSuccessResponse({ ok:true }, 'Playlist deleted'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','delete','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','delete','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // List items in a playlist
@@ -110,7 +110,7 @@ export function buildPlaylistsRouter(utils = defaultUtils()){
       const { rows } = await query('SELECT id, media_key, position, created_at FROM playlist_items WHERE playlist_id=$1 ORDER BY COALESCE(position, 0), created_at',[id]);
       const items = (rows||[]).map(r=>{ const info = mapMediaKeyToInfo(r.media_key); return { id:r.id, media_key:r.media_key, position:r.position, created_at:r.created_at, url: info.url, thumbnail: info.thumbnail, name: info.name, mediaType: info.mediaType, relativePath: info.relativePath }; });
       return res.json(U.createSuccessResponse({ items }, 'Playlist items'));
-    } catch(e){ U.errorLog?.('PLAYLISTS','list_items','Failed',e); return res.status(500).json(U.createErrorResponse('Failed')); }
+  } catch { U.errorLog?.('PLAYLISTS','list_items','Failed'); return res.status(500).json(U.createErrorResponse('Failed')); }
   });
 
   // Add media to playlist

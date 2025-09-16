@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, afterAll } from 'vitest';
-import { initDb, query, closeDb, getDriver } from '../server/db/db.js';
+import { query, closeDb, getDriver } from '../server/db/db.js';
 import { ensureTestDb } from './utils/testDb.mjs';
 
 async function tableExists(name){

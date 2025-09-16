@@ -11,7 +11,7 @@ describe('Admin Thumbnail route', () => {
   // Disable sharp mock BEFORE dynamic import of app
   // Force test to bypass sharp mock by providing a pre-existing PNG file
   delete process.env.ENABLE_REAL_SHARP; // ensure we use fallback buffer
-  try { vi.resetModules(); } catch (e) { /* ignore */ }
+  try { vi.resetModules(); } catch { /* ignore */ }
     const tmpBase = trackTempDir(await fs.promises.mkdtemp(path.join(os.tmpdir(), 'nudeadmin-out-')));
     process.env.OUTPUT_DIR = tmpBase;
     try {

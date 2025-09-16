@@ -136,7 +136,7 @@ export function buildMediaLibraryRouter(options={}){
       if(!randomMedia) return res.status(404).json(U.createErrorResponse('No media found'));
       const mediaInfo = { ...randomMedia, thumbnail:`/media/thumb/${randomMedia.relativePath}?w=720`, url:`/media/${randomMedia.relativePath}` };
       return res.json(U.createSuccessResponse(mediaInfo,'Random media info retrieved'));
-    }catch(e){ return res.status(500).json(U.createErrorResponse('Internal server error')); }
+  }catch { return res.status(500).json(U.createErrorResponse('Internal server error')); }
   });
   if(outputDir){
     router.get('/library-images', async (req,res)=>{
@@ -152,7 +152,7 @@ export function buildMediaLibraryRouter(options={}){
         const encodedFolder = folderSegments.map(encodeURIComponent).join('/');
         const items = images.map(name=>{ const encodedName = encodeURIComponent(name); const relUrl = encodedFolder ? `${encodedFolder}/${encodedName}` : encodedName; return { name, url:`/output/${relUrl}`, thumbnail:`/thumbs/output/${relUrl}?w=480` }; });
         return res.json(U.createSuccessResponse({ images: items, folder: folderParam || '' }, 'Library images'));
-      }catch(err){ return res.status(500).json(U.createErrorResponse('Failed to list library images')); }
+  }catch { return res.status(500).json(U.createErrorResponse('Failed to list library images')); }
     });
     router.get('/library-folders', async (req,res)=>{
       try {
@@ -173,7 +173,7 @@ export function buildMediaLibraryRouter(options={}){
         }
         results.sort((a,b)=> a.displayName.localeCompare(b.displayName, undefined, { sensitivity:'base', numeric:true }));
         return res.json(U.createSuccessResponse({ folders: results, folder: dirParam || '' }, 'Library folders'));
-      }catch(err){ return res.status(500).json(U.createErrorResponse('Failed to list library folders')); }
+  }catch { return res.status(500).json(U.createErrorResponse('Failed to list library folders')); }
     });
   }
   return router;

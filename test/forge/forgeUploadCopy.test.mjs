@@ -47,7 +47,7 @@ describe('forge upload-copy endpoint', () => {
     } finally {
       try {
         if (storedPath && fs.existsSync(storedPath)) await fs.promises.unlink(storedPath);
-      } catch {}
+  } catch { /* best-effort temp unlink */ }
       await cleanupTracked();
       server.close();
     }

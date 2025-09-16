@@ -1,5 +1,4 @@
 // Playlist test factory utilities
-import http from 'http';
 import { sessionUser } from './sessionFactory.mjs';
 import { requestJson } from './requestUtils.mjs';
 

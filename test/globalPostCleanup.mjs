@@ -5,7 +5,7 @@ import os from 'os';
 import path from 'path';
 
 function safeRm(p){
-  try { fs.rmSync(p, { recursive: true, force: true }); } catch {}
+  try { fs.rmSync(p, { recursive: true, force: true }); } catch { /* ignore removal errors */ }
 }
 
 function listDirNames(dir){
@@ -20,12 +20,12 @@ function scanAndClean(){
     for (const name of fs.readdirSync(os.tmpdir())) {
       if (/^nudeadmin-out-/i.test(name)) candidates.push(path.join(os.tmpdir(), name));
     }
-  } catch {}
+  } catch { /* tmp scan failed */ }
   try {
     for (const name of fs.readdirSync(cwd)) {
       if (/^tmp-shared-test-/i.test(name) && fs.statSync(path.join(cwd,name)).isDirectory()) candidates.push(path.join(cwd,name));
     }
-  } catch {}
+  } catch { /* cwd scan failed */ }
   let removed = 0;
   for (const c of candidates) { safeRm(c); removed++; }
 

@@ -7,7 +7,7 @@ import fetch from 'node-fetch';
 /* Seeds 5 media items with tag counts: 0,1,1,2,3 */
 
 describe('admin media tag coverage endpoint', () => {
-  let baseUrl, stop, cookie, seededIds = [];
+  let baseUrl, stop, cookie; // seeded id tracking not needed for final assertions
   beforeAll(async () => {
     await ensureTestDb({ fresh:true });
     const now = new Date().toISOString();
@@ -19,7 +19,6 @@ describe('admin media tag coverage endpoint', () => {
     }
     const { rows } = await query('SELECT id, media_key FROM media WHERE media_key IN (?,?,?,?,?)', keys);
     const idByKey = Object.fromEntries(rows.map(r=> [r.media_key, r.id]));
-    seededIds = Object.values(idByKey);
     // Tag assignments: item2 (1), item3 (1), item4 (2), item5 (3)
     const addTag = (key, tag) => query('INSERT INTO media_tags (media_id, tag, created_at) VALUES (?,?,?)', [idByKey[key], tag, now]);
     await addTag(keys[1], 'one');
@@ -47,7 +46,7 @@ describe('admin media tag coverage endpoint', () => {
     expect(zeroBucket).toBeTruthy();
     // Should surface untagged sample containing at least one of our seeded untagged ids
     const sampleIds = new Set((data.topUntaggedSample||[]).map(i=> i.id));
-    const untaggedId = seededIds[0];
+  // Note: first seeded id intentionally left without tags; no direct variable needed
     // It's possible (rare) additional earlier media push ours out of sample; allow either presence or empty if >10 earlier
     if((data.topUntaggedSample||[]).length <= 10){
       // If sample isn't huge, we expect our one untagged item likely present

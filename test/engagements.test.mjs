@@ -3,7 +3,6 @@ import { ensureTestDb } from './utils/testDb.mjs';
 import { query } from '../server/db/db.js';
 import { createMedia } from './utils/mediaFactory.mjs';
 import { addView, addLike, addDownload, addSave } from './utils/engagementFactory.mjs';
-import path from 'node:path';
 
 let userId;
 let media;
@@ -19,13 +18,12 @@ beforeAll(async () => {
   try {
     const { rows, lastID } = await query(`INSERT INTO users (email, password_hash, role, created_at, username) VALUES (?,?,?,?,?) RETURNING id`, [email, passwordHash, 'user', now, username]);
     inserted = rows?.[0]?.id || lastID;
-  } catch (e) {
+  } catch {
     // On unique failures, select existing (defensive)
     const { rows } = await query(`SELECT id FROM users WHERE email=?`, [email]);
     inserted = rows[0].id;
   }
   userId = inserted;
-  const filePath = path.join(process.cwd(), 'test', 'fixtures', 'tiny.png');
   media = await createMedia({ userId: userId, mediaKey: 'eng-media-'+Date.now() });
 });
 

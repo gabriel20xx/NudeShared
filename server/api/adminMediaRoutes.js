@@ -7,7 +7,7 @@ function defaultUtils(){
 
 export function buildAdminMediaRouter(options={}) {
   const { utils = defaultUtils(), requireAuth, requireAdmin, basePath='/admin' } = options;
-  const U = utils || defaultUtils();
+  const U = utils || defaultUtils(); // Intentional use; kept (rename to _U if remains unused later)
   const router = express.Router();
   // Simple in-memory cache (process scoped) for lightweight analytics endpoints
   const _cache = new Map(); // key -> { exp:number, data:any }
@@ -152,7 +152,7 @@ export function buildAdminMediaRouter(options={}) {
   router.post(`${basePath}/media/actions`, ensureAuth, ensureAdmin, async (req,res)=>{
     try{
       U.infoLog?.('ADMIN_MEDIA','actions_start',{ action: req.body?.action, ids: Array.isArray(req.body?.ids)? req.body.ids.length:0 });
-      const { action, ids, title, category, tags } = req.body||{};
+  const { action, ids, title, tags } = req.body||{}; // removed unused legacy category field
       if(!Array.isArray(ids) || ids.length===0) return res.status(400).json({ success:false,error:'No ids'});
       const placeholdersPg = ids.map((_,i)=> `$${i+1}`).join(',');
       const placeholdersSqlite = ids.map(()=> '?').join(',');
@@ -204,7 +204,7 @@ export function buildAdminMediaRouter(options={}) {
         case 'remove_tags': {
           const tagList = parseTags(tags);
           if(!tagList.length) return res.status(400).json({ success:false,error:'tags required'});
-          const paramsBase = [];
+          // paramsBase removed (unused legacy variable)
           if(driver==='pg'){
             const idParams = ids.map((_,i)=> `$${i+1}`).join(',');
             const tagParams = tagList.map((_,i)=> `$${ids.length + i + 1}`).join(',');

@@ -74,8 +74,8 @@ export function buildAuthRouter(Router, options = {}) {
             // Append random suffix
             username = (username + '-' + Math.random().toString(36).slice(2,6)).slice(0,64);
           }
-        } catch (e) {
-          // Non-fatal legacy bcrypt fallback failure
+  } catch {
+          // Non-fatal legacy bcrypt fallback failure – intentionally ignored
         }
       }
 
@@ -84,13 +84,13 @@ export function buildAuthRouter(Router, options = {}) {
       try {
         const { rows: adminCheck } = await query("SELECT 1 FROM users WHERE role IN ('admin','superadmin') LIMIT 1", []);
         elevate = !adminCheck || adminCheck.length === 0; // no admin yet -> elevate
-      } catch (e) {
+  } catch {
         // If role column missing or query fails, fallback: elevate only when table empty
         try {
           const { rows: anyUser } = await query('SELECT 1 FROM users LIMIT 1', []);
           elevate = !anyUser || anyUser.length === 0;
-        } catch (e) {
-          // Non-fatal password compare issue
+  } catch {
+          // Non-fatal password compare / table absence issue – ignored intentionally
         }
       }
 
@@ -107,11 +107,11 @@ export function buildAuthRouter(Router, options = {}) {
   const { rows } = await query(insertSql, params);
   const user = sanitizeUserRow(rows[0]);
   // Invalidate any external admin presence caches by emitting a lightweight global hint
-  try { process.emit && process.emit('nudeplatform:first-admin-created'); } catch (e) {
-    // Emitting event failed (unlikely); continue
+  try { process.emit && process.emit('nudeplatform:first-admin-created'); } catch {
+    // Emitting event failed (unlikely); continue (non-fatal notification path)
   }
   req.session.user = user;
-  try { req.session.userId = user.id; } catch {}
+  try { req.session.userId = user.id; } catch { /* session store may not persist userId separately */ }
       res.json({ user, elevated: elevate });
     } catch (e) { Logger.error(MODULE, 'Signup error', e); res.status(500).json({ error: 'Signup failed' }); }
   });
@@ -152,7 +152,7 @@ export function buildAuthRouter(Router, options = {}) {
       await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}`, params);
   const { rows } = await query('SELECT id, email, role, created_at FROM users WHERE id = $1', [sess.id]);
   req.session.user = sanitizeUserRow(rows[0]);
-  try { req.session.userId = req.session.user.id; } catch {}
+  try { req.session.userId = req.session.user.id; } catch { /* legacy session store shape */ }
       res.json({ ok: true });
     } catch (e) { Logger.error(MODULE, 'Profile update error', e); res.status(500).json({ error: 'Failed to update profile' }); }
   });
@@ -169,27 +169,21 @@ export function buildAuthRouter(Router, options = {}) {
           try {
             const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE email = $1', [normalized]);
             if (rows && rows.length) row = rows[0];
-          } catch (e) {
-            // Optional audit emit failure
-          }
+    } catch { /* optional audit emit failure ignored */ }
         }
       } else {
         // Attempt username lookup using raw (case-insensitive) then fallback to normalized sanitized form
         try {
           const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [raw]);
           if (rows && rows.length) row = rows[0];
-        } catch (e) {
-          // Session save race; ignore
-        }
+  } catch { /* session save race ignored */ }
         if (!row) {
           const uname = normalizeUsername(raw);
           if (uname) {
             try {
               const { rows } = await query('SELECT id, email, password_hash, role, created_at FROM users WHERE lower(username)=lower($1)', [uname]);
               if (rows && rows.length) row = rows[0];
-            } catch (e) {
-              // Logout emit failure ignored
-            }
+            } catch { /* logout emit failure ignored */ }
           }
         }
       }
@@ -202,8 +196,8 @@ export function buildAuthRouter(Router, options = {}) {
       if (!verifyPassword(password, row.password_hash)) return res.status(401).json({ error: 'Invalid credentials' });
   const user = sanitizeUserRow(row);
   req.session.user = user;
-  try { req.session.userId = user.id; } catch {}
-  try { await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [user.id]); } catch (e) { /* last_login update non-critical */ }
+  try { req.session.userId = user.id; } catch { /* session store may not have setter */ }
+  try { await query('UPDATE users SET last_login_at = CURRENT_TIMESTAMP WHERE id = $1', [user.id]); } catch { /* last_login update non-critical */ }
       res.json({ user });
     } catch (e) { Logger.error(MODULE, 'Login error', e); res.status(500).json({ error: 'Login failed' }); }
   });

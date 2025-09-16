@@ -22,7 +22,6 @@ async function bootstrapFlowHome(base){
 
 test('fullscreen controls persist after simulated fullscreen toggles', async () => {
   await ensureTestDb({ memory: true, fresh: true });
-  const express = await import('express');
   const http = await import('http');
   const app = await createApp();
   const server = http.createServer(app);

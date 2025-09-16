@@ -7,8 +7,8 @@ let BetterSqlite3;
 async function loadPackage(name) {
   try {
     return await import(name);
-  } catch (importErr) {
-      const { createRequire } = await import('module'); // Import error handling
+  } catch {
+  const { createRequire } = await import('module'); // Import error handling
     const req = createRequire(path.join(process.cwd(), 'package.json'));
     return req(name);
   }
@@ -72,7 +72,7 @@ export async function initDb() {
   const defaultPath = path.join(repoRoot, 'database', 'dbfile.db');
     const sqlitePath = process.env.SQLITE_PATH || defaultPath;
     const dir = path.dirname(sqlitePath);
-    try { fs.mkdirSync(dir, { recursive: true }); } catch (e) {
+  try { fs.mkdirSync(dir, { recursive: true }); } catch {
       // Ignore mkdir race conditions
     }
     // Proactively create the file when using a regular filesystem path
@@ -82,12 +82,12 @@ export async function initDb() {
           fs.closeSync(fs.openSync(sqlitePath, 'a'));
         }
       }
-    } catch (e) {
+  } catch {
       // Swallow close errors during shutdown
     }
     try {
       sqliteDb = new BetterSqlite3(sqlitePath);
-    } catch (loadErr) {
+  } catch (loadErr) {
       const isDlopen = /ERR_DLOPEN_FAILED/i.test(String(loadErr?.code)) || /dlopen/i.test(String(loadErr?.message||''));
       Logger.error(MODULE, 'better-sqlite3 native module load failed', { code: loadErr?.code, message: loadErr?.message, isDlopen, sqlitePath });
       if (isDlopen) {
@@ -98,8 +98,8 @@ export async function initDb() {
           driver = 'sqlite';
           Logger.warn(MODULE, 'Using in-memory SQLite fallback due to native load error');
           return { driver, ephemeral: true };
-        } catch (memErr) {
-          Logger.error(MODULE, 'Failed creating in-memory fallback SQLite instance', { message: memErr?.message });
+        } catch (_memErr) {
+          Logger.error(MODULE, 'Failed creating in-memory fallback SQLite instance', { message: _memErr?.message });
           throw loadErr; // rethrow original
         }
       } else {
@@ -150,12 +150,12 @@ export async function query(text, params) {
 export async function closeDb() {
   if (pool) {
     try { await pool.end(); Logger.info(MODULE, 'PostgreSQL pool closed'); }
-    catch (e) { Logger.warn(MODULE, 'Error closing PostgreSQL pool', e); }
+  catch (_e) { Logger.warn(MODULE, 'Error closing PostgreSQL pool', _e); }
     finally { pool = undefined; }
   }
   if (sqliteDb) {
     try { sqliteDb.close(); Logger.info(MODULE, 'SQLite database closed'); }
-    catch (e) { Logger.warn(MODULE, 'Error closing SQLite database', e); }
+  catch (_e) { Logger.warn(MODULE, 'Error closing SQLite database', _e); }
     finally { sqliteDb = undefined; }
   }
 }

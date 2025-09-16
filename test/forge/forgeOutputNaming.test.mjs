@@ -1,15 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import fs from 'fs';
-import path from 'path';
+// Removed unused fs, path imports
 import { ensureTestDb } from '../testUtils.js';
 
 // This test simulates queue workflow customization ensuring username-based folder path (fallback anonymous)
 // We don't invoke full ComfyUI workflow; instead we call the internal helper by importing queue.js and verifying computeUserOutputSubdir + path mutation logic.
 
-import * as queueMod from '../../../NudeForge/src/services/queue.js';
-
-// Access non-exported function via exported computeUserOutputSubdir (white-box test for contract)
-const { /* sanitizeFolderName intentionally not exported */ } = queueMod;
+import * as queueMod from '../../../NudeForge/src/services/queue.js'; // computeUserOutputSubdir used; omit unused destructuring
 
 // We added computeUserOutputSubdir; verify behavior.
 

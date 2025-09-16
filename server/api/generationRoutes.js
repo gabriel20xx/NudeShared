@@ -7,7 +7,7 @@ import archiver from 'archiver';
 import { query as dbQuery } from '../db/db.js';
 
 export function buildGenerationRouter(opts={}){
-  const { queue, uploads, config, utils } = opts;
+  const { queue, uploads, config } = opts; // removed unused utils
   if(!queue) throw new Error('queue required');
   if(!uploads) throw new Error('uploads (upload, uploadCopy) required');
   const {
@@ -21,7 +21,7 @@ export function buildGenerationRouter(opts={}){
   } = queue;
   const { upload, uploadCopy } = uploads;
   const { MAX_UPLOAD_FILES=4, OUTPUT_DIR } = config || {};
-  const U = utils || console;
+  // utils currently unused; removed assignment to avoid lint warning
   const router = express.Router();
 
   router.get('/queue-status', (req,res)=>{
@@ -40,11 +40,11 @@ export function buildGenerationRouter(opts={}){
 
   router.post('/cancel', (req,res)=>{
     try { const result = cancelAll(req.app.get('io')); if(result && result.error) return res.status(500).json({ success:false, error: result.error}); res.json({ success:true, ...result }); }
-    catch(e){ res.status(500).json({ success:false, error:e.message }); }
+  catch { res.status(500).json({ success:false, error:'Cancel all failed' }); }
   });
   router.post('/cancel/:requestId', async (req,res)=>{
     try { const { requestId } = req.params; if(!requestId) return res.status(400).json({ success:false,error:'requestId required'}); const result = await cancelRequest(req.app.get('io'), requestId); if(result && result.error) return res.status(500).json({ success:false,error:result.error}); res.json({ success:true, ...result, active:getCurrentlyProcessingRequestId() }); }
-    catch(e){ res.status(500).json({ success:false, error:e.message }); }
+  catch { res.status(500).json({ success:false, error:'Cancel failed' }); }
   });
 
   router.post('/upload', upload.array('image', MAX_UPLOAD_FILES), async (req,res)=>{
@@ -61,7 +61,7 @@ export function buildGenerationRouter(opts={}){
         } else {
           resolvedUserName = 'Anonymous';
         }
-      } catch (e) { /* default to Anonymous */ resolvedUserName = 'Anonymous'; }
+  } catch { /* default to Anonymous */ resolvedUserName = 'Anonymous'; }
       for(const f of files){
         const uploadedFilename = f.filename; const originalFilename=f.originalname; const uploadedPathForComfyUI = path.posix.join('input', uploadedFilename); const requestId = crypto.randomUUID?.() || Math.random().toString(36).slice(2); createdIds.push(requestId);
   getRequestStatus()[requestId] = { status:'pending', totalNodesInWorkflow:0, originalFilename, uploadedFilename, settings:{ prompt, steps, outputHeight, ...restSettings }, workflowName: workflowNameRaw, userId:(req.session?.user?.id || null), userName: resolvedUserName, saveNodeTarget: saveNodeTarget || null };
@@ -70,7 +70,7 @@ export function buildGenerationRouter(opts={}){
       if(process.env.SKIP_QUEUE_PROCESSING!=='true') processQueue(req.app.get('io'));
       const firstRequestId = createdIds[0];
   res.status(202).json({ success:true, message:`${createdIds.length} item(s) queued`, queued: createdIds.length, requestId:firstRequestId, requestIds:createdIds, queueSize:getProcessingQueue().length, yourPosition: initialQueueSize + 1 });
-    }catch(e){ res.status(500).json({ success:false, error:'Upload failed', detail:e.message }); }
+  }catch { res.status(500).json({ success:false, error:'Upload failed' }); }
   });
 
   router.post('/upload-copy', uploadCopy.single('image'), (req,res)=>{
@@ -88,7 +88,7 @@ export function buildGenerationRouter(opts={}){
       const outputRelativePath = data.data.outputImage;
       const mediaKey = path.basename(outputRelativePath);
       // Record download
-      try{ await dbQuery('INSERT INTO media_downloads (user_id, media_key, app) VALUES ($1,$2,$3)', [req.session?.user?.id||null, mediaKey, 'NudeForge']); } catch (e) {
+  try{ await dbQuery('INSERT INTO media_downloads (user_id, media_key, app) VALUES ($1,$2,$3)', [req.session?.user?.id||null, mediaKey, 'NudeForge']); } catch {
         // Non-fatal metrics insert failure
       }
       const outputFilename = path.basename(outputRelativePath);
@@ -96,11 +96,11 @@ export function buildGenerationRouter(opts={}){
       const abs = path.join(outDir, outputFilename);
       res.setHeader('Content-Disposition', `attachment; filename="${outputFilename}"`);
       res.sendFile(abs);
-    } catch(e){ res.status(500).send('Download error'); }
+  } catch { res.status(500).send('Download error'); }
   });
 
   router.get('/download-zip', async (req,res)=>{
-    try { let files=req.query.files; if(!files) return res.status(400).send('No files'); if(!Array.isArray(files)) files=[files]; const outDir=OUTPUT_DIR || path.resolve(process.cwd(),'output'); const safe=[]; for(const f of files){ const base=path.basename(f); if(base!==f) continue; if(!/\.(png|jpg|jpeg|webp|gif)$/i.test(base)) continue; const abs=path.join(outDir, base); try { await fs.promises.access(abs); safe.push({base,abs}); } catch (e) { /* ignore missing */ } } if(!safe.length) return res.status(404).send('No valid files'); const zipName = safe.length===1? `${path.parse(safe[0].base).name}.zip` : `outputs-${safe.length}.zip`; res.setHeader('Content-Type','application/zip'); res.setHeader('Content-Disposition',`attachment; filename="${zipName}"`); const archive=archiver('zip',{zlib:{level:9}}); archive.on('error',err=>{ try{res.status(500).end();}catch(e2){ /* ignore response end errors */ } }); archive.pipe(res); for(const {base,abs} of safe) archive.file(abs,{name:base}); await archive.finalize(); } catch(e){ try{ res.status(500).send('ZIP error'); }catch(e2){ /* ignore */ } }
+  try { let files=req.query.files; if(!files) return res.status(400).send('No files'); if(!Array.isArray(files)) files=[files]; const outDir=OUTPUT_DIR || path.resolve(process.cwd(),'output'); const safe=[]; for(const f of files){ const base=path.basename(f); if(base!==f) continue; if(!/\.(png|jpg|jpeg|webp|gif)$/i.test(base)) continue; const abs=path.join(outDir, base); try { await fs.promises.access(abs); safe.push({base,abs}); } catch { /* ignore missing */ } } if(!safe.length) return res.status(404).send('No valid files'); const zipName = safe.length===1? `${path.parse(safe[0].base).name}.zip` : `outputs-${safe.length}.zip`; res.setHeader('Content-Type','application/zip'); res.setHeader('Content-Disposition',`attachment; filename="${zipName}"`); const archive=archiver('zip',{zlib:{level:9}}); archive.on('error',()=>{ try{res.status(500).end();}catch{ /* ignore response end errors */ } }); archive.pipe(res); for(const {base,abs} of safe) archive.file(abs,{name:base}); await archive.finalize(); } catch { try{ res.status(500).send('ZIP error'); }catch{ /* ignore */ } }
   });
 
   return router;

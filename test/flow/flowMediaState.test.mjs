@@ -10,7 +10,6 @@ import { query } from '../../server/db/db.js';
 test('media state returns seeded counts', async () => {
   await ensureTestDb({ memory: true, fresh: true });
   // Start app once (no extra DB init) via manual server
-  const express = await import('express');
   const http = await import('http');
   const app = await createApp();
   const server = http.createServer(app);

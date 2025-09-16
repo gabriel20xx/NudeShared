@@ -1,5 +1,4 @@
 // Centralized binary & streaming helpers (moved from app test suites)
-/* eslint-disable no-restricted-syntax */
 import http from 'http';
 
 export function binaryRequest(urlStr, { method = 'GET', headers = {} } = {}) {
@@ -41,6 +40,5 @@ export function streamRequestIter(urlStr, { method='GET', headers={} } = {}, { d
   });
 }
 export async function backpressureSimulator(urlStr, reqOpts={}, controlOpts={}) { const { iterator } = await streamRequestIter(urlStr, reqOpts, controlOpts); return iterator; }
-/* eslint-enable no-restricted-syntax */
 
 export default { binaryRequest, streamRequest, streamRequestIter, backpressureSimulator };

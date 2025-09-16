@@ -10,7 +10,7 @@ export async function createMedia({ userId, mediaKey = '/media/output/sample.mp4
     const norm = Array.from(new Set(tags.map(t=> String(t).toLowerCase().trim()).filter(Boolean)));
     for(const t of norm){
       // SQLite friendly upsert ignore
-      try { await query('INSERT INTO media_tags (media_id, tag) VALUES (?,?)', [id, t]); } catch(e){ /* ignore duplicate */ }
+  try { await query('INSERT INTO media_tags (media_id, tag) VALUES (?,?)', [id, t]); } catch { /* ignore duplicate */ }
     }
   }
   return { id, user_id: userId, media_key: mediaKey, title, category, tags };

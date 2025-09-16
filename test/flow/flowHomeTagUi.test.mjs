@@ -2,8 +2,7 @@ import { describe, test, beforeAll, afterAll } from 'vitest';
 import { startEphemeral, ensureTestDb } from '../testUtils.js';
 import assert from 'assert';
 import fetch from 'node-fetch';
-import path from 'path';
-import fs from 'fs';
+// Removed unused path, fs imports
 
 // Focus: Homepage renders tag interaction scaffold
 describe('flow home tag UI', () => {

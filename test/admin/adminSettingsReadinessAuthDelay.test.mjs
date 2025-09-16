@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { startEphemeral, createAuthenticatedServer } from '../utils/serverHelpers.mjs';
+import { createAuthenticatedServer } from '../utils/serverHelpers.mjs';
 import { app as adminApp } from '../../../NudeAdmin/src/app.js';
 import { resetTableReadiness } from '../../server/readiness/tableReadiness.js';
 import { ensureTestDb } from '../utils/testDb.mjs';

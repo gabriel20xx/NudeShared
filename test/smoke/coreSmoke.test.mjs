@@ -33,19 +33,16 @@ test('core NudeFlow smoke: health, overlay script, tag suggestions shape', async
   const overlayText = await overlay.text();
   expect(overlayText).toContain('createOverlayController');
 
-    // 3. Public tag suggestions (empty DB: returns empty array shape)
-    const sug = await fetch(base + '/api/tags/suggestions?limit=5');
-    expect(sug.status).toBe(200);
-    const sugJson = await sug.json();
-    expect(Array.isArray(sugJson.tags)).toBe(true);
-    expect(sugJson.tags.length).toBeLessThanOrEqual(5);
-
-    // 4. Home page extended assertions (merging prior granular tests)
+  // 3. Home page extended assertions (merging prior granular tests)
     const home = await fetch(base + '/');
     expect(home.status).toBe(200);
     const html = await home.text();
-    // Structural overlay elements
-    expect(html).toMatch(/id="tagsOverlay"/);
+      // Structural overlay elements
+      expect(html).toMatch(/id="tagsOverlay"/);
+      // Dialog role (server or client may set; allow either role attr or will be added by script). We only assert non-regression if present.
+      if(/id="tagsOverlay"[^>]+role=/.test(html)){
+        expect(/id="tagsOverlay"[^>]+role="dialog"/.test(html)).toBe(true);
+      }
     expect(html).toMatch(/id="tagsOverlayTitle"/);
     expect(html).toMatch(/id="tagsOverlayList"/);
     expect(html).toMatch(/id="tagsOverlayClose"/);
@@ -74,6 +71,17 @@ test('core NudeFlow smoke: health, overlay script, tag suggestions shape', async
   // Playlist login button (unauth guard). Relaxed: just ensure id and class occur (ordering/styles may evolve)
   expect(plHtml.includes('id="plLoginLink"')).toBe(true);
   expect(plHtml.includes('class="auth-btn"') || /id="plLoginLink"[^>]+class="[^"]*auth-btn/.test(plHtml)).toBe(true);
+    // 4. Public tag suggestions (empty DB: returns empty array shape) + quick repeat for cache path
+    const sug = await fetch(base + '/api/tags/suggestions?limit=5');
+    expect(sug.status).toBe(200);
+    const sugJson = await sug.json();
+    expect(Array.isArray(sugJson.tags)).toBe(true);
+    expect(sugJson.tags.length).toBeLessThanOrEqual(5);
+    const sug2 = await fetch(base + '/api/tags/suggestions?limit=5');
+    expect(sug2.status).toBe(200);
+    const sugJson2 = await sug2.json();
+    expect(Array.isArray(sugJson2.tags)).toBe(true);
+    expect(sugJson2.tags.length).toBeLessThanOrEqual(5);
   } finally {
     await close();
   }

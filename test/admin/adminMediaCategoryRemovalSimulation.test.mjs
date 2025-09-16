@@ -2,7 +2,6 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import { ensureTestDb } from '../utils/testDb.mjs';
 import { query, getDriver } from '../../server/db/db.js';
 import { runMigrations } from '../../server/db/migrate.js';
-import { readFileSync } from 'fs';
 import { spawnSync } from 'child_process';
 import path from 'path';
 import { pathToFileURL } from 'url';
@@ -40,7 +39,7 @@ describe('simulate category removal script', () => {
     let jsonLine = [...lines].reverse().find(l=> l.startsWith('{') && l.endsWith('}'));
     if(!jsonLine){
       // Fallback: dynamic import script within this process and capture console
-      const logs=[]; const origLog = console.log; try { console.log = (...a)=>{ logs.push(a.join(' ')); origLog(...a); }; await import(pathToFileURL(path.join(nudeSharedRoot,'scripts','simulate-category-removal.mjs')).href); } catch(_){} finally { console.log = origLog; }
+  const logs=[]; const origLog = console.log; try { console.log = (...a)=>{ logs.push(a.join(' ')); origLog(...a); }; await import(pathToFileURL(path.join(nudeSharedRoot,'scripts','simulate-category-removal.mjs')).href); } catch { /* fallback dynamic import failed – acceptable for readiness test */ } finally { console.log = origLog; }
       jsonLine = logs.reverse().find(l=> l.trim().startsWith('{') && l.trim().endsWith('}'));
     }
     expect(jsonLine, 'Expected simulation script to emit a JSON summary line').toBeTruthy();

@@ -17,9 +17,9 @@ describe('Shared logout redirect', () => {
     const flowFactory = mod.default || mod.createApp || mod;
     const { server, base } = await startEphemeral(flowFactory);
     try {
-      const res = await fetch(base + '/');
-      const html = await res.text();
-      expect(res.status).toBe(200);
+  const res = await fetch(base + '/');
+  await res.text();
+  expect(res.status).toBe(200);
       // Basic sanity: shared header should inject authOpenBtn, but if the minimal fallback engine stripped it,
       // we still proceed to fetch the shared script directly for the redirect assertion.
       // (Do not fail test solely on missing button to avoid flakiness from template fallback paths.)
@@ -30,7 +30,7 @@ describe('Shared logout redirect', () => {
       const scriptText = await scriptRes.text();
       expect(scriptText).toMatch(/window\.location\.replace\('\/'\)/);
     } finally {
-      try { server.close(); } catch {}
+  try { server.close(); } catch { /* server close ignored */ }
     }
   });
 });

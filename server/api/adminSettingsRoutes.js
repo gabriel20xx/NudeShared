@@ -4,11 +4,12 @@ import { ensureTableReady } from '../readiness/tableReadiness.js';
 
 // Backwards shim (keep name for existing imports/tests) – delegates to central helper
 async function ensureSettingsReady(log){
-  return ensureTableReady('settings', { attempts:10, delayMs:100, log: (mod,msg)=>{ try { log?.(mod||'ADMIN_SETTINGS', msg); } catch {} } });
+  return ensureTableReady('settings', { attempts:10, delayMs:100, log: (mod,msg)=>{ try { log?.(mod||'ADMIN_SETTINGS', msg); } catch { /* logging delegate failed – ignore */ } } });
 }
 
 function defaultUtils(){
-  return { success:(d,m='OK')=>({success:true,data:d,message:m}), error:(e)=>({success:false,error:e}), infoLog:()=>{}, errorLog:()=>{} };
+  // Provide noop logging functions; kept explicit for clarity (eslint no-empty handled by having bodies)
+  return { success:(d,m='OK')=>({success:true,data:d,message:m}), error:(e)=>({success:false,error:e}), infoLog:()=>{/* intentional noop */}, errorLog:()=>{/* intentional noop */} };
 }
 
 export function buildAdminSettingsRouter(options={}){
@@ -28,7 +29,7 @@ export function buildAdminSettingsRouter(options={}){
       const r = await query('SELECT key,value FROM settings');
       const out={}; for(const row of r.rows) out[row.key] = row.value;
       res.json({ success:true, settings: out });
-    } catch(e){ U.errorLog?.('ADMIN_SETTINGS','get', e); res.status(500).json({ success:false,error:'Failed to load settings'}); }
+  } catch{ U.errorLog?.('ADMIN_SETTINGS','get'); res.status(500).json({ success:false,error:'Failed to load settings'}); }
   });
 
   // Batch update settings
@@ -43,18 +44,16 @@ export function buildAdminSettingsRouter(options={}){
             // Some SQLite builds may lack full UPSERT support; emulate with try/replace
             try {
               await query('INSERT INTO settings(key,value,updated_at) VALUES(?,?,CURRENT_TIMESTAMP)', [k, String(v)]);
-            } catch(e) {
+            } catch {
               // assume conflict, perform update
               await query('UPDATE settings SET value=?, updated_at=CURRENT_TIMESTAMP WHERE key=?', [String(v), k]);
             }
         }
       }
       res.json({ success:true, updated: entries.length });
-    } catch(e){
-      U.errorLog?.('ADMIN_SETTINGS','set', e?.message || e);
-      try { console.error('ADMIN_SETTINGS set error', e); } catch (logErr) {
-        // Swallow secondary logging failure
-      }
+    } catch{
+      U.errorLog?.('ADMIN_SETTINGS','set');
+      try { console.error('ADMIN_SETTINGS set error'); } catch { /* secondary console error ignored */ }
       res.status(500).json({ success:false,error:'Failed to update settings'});
     }
   });

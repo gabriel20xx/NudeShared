@@ -16,7 +16,7 @@ export async function ensureTableReady(tableName, opts = {}) {
       await q(`SELECT 1 FROM ${tableName} LIMIT 1`);
       __readyCache.set(tableName, true);
       return true;
-    } catch (_err) {
+  } catch {
       // swallow missing-table errors until attempts exhausted
       await new Promise(r => setTimeout(r, delayMs));
     }

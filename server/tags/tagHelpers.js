@@ -7,8 +7,13 @@ export function normalizeTag(raw) {
   let t = String(raw).trim().toLowerCase();
   // Replace any whitespace sequence with single space
   t = t.replace(/\s+/g, ' ');
-  // Basic sanitation: remove control chars
-  t = t.replace(/[\x00-\x1F\x7F]/g, '');
+  // Basic sanitation: remove ASCII control chars (0-31 + 127) by iterating to avoid control-char regex ranges (eslint no-control-regex)
+  let cleaned = '';
+  for (let i = 0; i < t.length; i++) {
+    const code = t.charCodeAt(i);
+    if (code > 31 && code !== 127) cleaned += t[i];
+  }
+  t = cleaned;
   if (t.length > 40) t = t.slice(0, 40);
   return t;
 }

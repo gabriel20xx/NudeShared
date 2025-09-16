@@ -15,9 +15,7 @@ if (process.env.VITEST_SHARED_DB === 'true') {
     // Recreate schema quickly by re-running ensureTestDb with fresh flag.
     await ensureTestDb({ memory: true, fresh: true });
   };
-  // eslint-disable-next-line no-console
   console.log('[TEST_SHARED_DB] Initialized shared in-memory DB in', Date.now() - start, 'ms');
 } else {
-  // eslint-disable-next-line no-console
   console.log('[TEST_SHARED_DB] Shared DB disabled (set VITEST_SHARED_DB=true to enable).');
 }

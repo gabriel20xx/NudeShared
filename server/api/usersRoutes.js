@@ -5,7 +5,7 @@ function defaultUtils(){
   return { success:(d,m='OK')=>({success:true,data:d,message:m}), error:(e)=>({success:false,error:e}), infoLog:()=>{}, errorLog:()=>{} };
 }
 
-function makePlaceholder(i){ return getDriver()==='pg' ? `$${i}` : '?'; }
+// Removed unused makePlaceholder helper (legacy leftover)
 
 export function buildUsersAdminRouter(options={}){
   const { utils = defaultUtils(), requireAuth, requireAdmin, basePath='/admin' } = options;

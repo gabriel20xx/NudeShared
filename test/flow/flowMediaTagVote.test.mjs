@@ -1,21 +1,12 @@
 import { describe, test, expect } from 'vitest';
-import { createApp as createFlowApp } from '../../../NudeFlow/src/app.js';
 import { initDb, runMigrations, query } from '../../server/db/db.js';
-import http from 'http';
-
-async function startServer(app){
-  return new Promise(resolve=>{
-    const server = http.createServer(app);
-    server.listen(0, ()=> resolve(server));
-  });
-}
 
 async function seedUser(email){
-  try { await query('INSERT INTO users (email, password_hash) VALUES (?,?)', [email,'h']); } catch {}
+  try { await query('INSERT INTO users (email, password_hash) VALUES (?,?)', [email,'h']); } catch { /* insert may fail on duplicate – acceptable */ }
   try {
     const { rows } = await query('SELECT id FROM users WHERE email = ? OR email = $1 LIMIT 1', [email]);
     return rows[0].id;
-  } catch {
+  } catch { /* driver dialect fallback */
     const { rows } = await query('SELECT id FROM users WHERE email = $1 LIMIT 1', [email]);
     return rows[0].id;
   }

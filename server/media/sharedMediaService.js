@@ -2,7 +2,7 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { promises as fs } from 'fs';
-import fsSync from 'fs';
+// Removed unused fsSync import (was only for potential sync operations)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -31,7 +31,7 @@ async function scanMedia(){
     }
     if(tempCats.size>0) tempCats.add('all');
     mediaCache=tempMedia; categoriesCache=Array.from(tempCats).map(name=>({name,displayName:name}));
-  } catch (e) {
+  } catch {
     // Non-fatal: failing to pre-create directories should not block startup
   }
 }

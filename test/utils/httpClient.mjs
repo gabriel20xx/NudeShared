@@ -32,7 +32,7 @@ export function httpRequest(method, base, path, data, extraHeaders={}) {
 export async function apiJson(method, base, path, data, cookie){
   const res = await httpRequest(method, base, path, data, cookie ? { Cookie: cookie } : {});
   let json = null;
-  try { json = JSON.parse(res.body); } catch (e) { /* non-JSON response */ }
+  try { json = JSON.parse(res.body); } catch { /* non-JSON response */ }
   return { res, json };
 }
 

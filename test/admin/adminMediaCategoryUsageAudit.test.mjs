@@ -23,7 +23,7 @@ describe('admin media category usage audit endpoint', () => {
   // Use a unique file-based SQLite DB so the admin app (which will initialize its own connection)
   // sees the seeded data. In-memory would create separate isolated instances.
   const uniqueDb = path.resolve(process.cwd(), 'database', 'audit_usage_'+Date.now()+'.db');
-  try { fs.mkdirSync(path.dirname(uniqueDb), { recursive: true }); } catch {}
+  try { fs.mkdirSync(path.dirname(uniqueDb), { recursive: true }); } catch { /* directory already exists or cannot be created – non-fatal for test */ }
   process.env.SQLITE_PATH = uniqueDb;
   resetMigrationFlag();
   await ensureTestDb({ fresh: true });

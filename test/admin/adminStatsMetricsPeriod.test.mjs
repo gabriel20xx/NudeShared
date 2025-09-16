@@ -23,7 +23,7 @@ test('admin stats metrics respect period window (7d vs 30d vs all)', async () =>
     const { rows: urows } = await query('SELECT id FROM users WHERE email=$1 LIMIT 1', [admin.email]);
     const adminId = urows?.[0]?.id || null;
   // Clean any previous metrics so window assertions remain deterministic
-  try { await query('DELETE FROM media_metrics'); } catch (e) { /* ignore absence */ }
+  try { await query('DELETE FROM media_metrics'); } catch { /* ignore absence */ }
     const now = new Date();
     const day = 24*60*60*1000;
     const samples = [

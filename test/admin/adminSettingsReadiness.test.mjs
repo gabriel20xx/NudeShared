@@ -1,8 +1,5 @@
 import { describe, test, expect } from 'vitest';
 import http from 'http';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 import { app as adminApp } from '../../../NudeAdmin/src/app.js';
 import { ensureTestDb } from '../utils/testDb.mjs';
 import { startEphemeral } from '../utils/serverHelpers.mjs';
