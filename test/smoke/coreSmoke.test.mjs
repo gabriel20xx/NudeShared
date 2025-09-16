@@ -51,6 +51,8 @@ test('core NudeFlow smoke: health, overlay script, tag suggestions shape', async
     expect(html).toMatch(/id="tagsOverlayClose"/);
     // Overlay trigger button & like button markup
     expect(html).toMatch(/id="tagsOverlayBtn"/);
+  // Ensure button wired to overlay via aria-controls and overlay hidden attribute present
+  expect(html).toMatch(/id="tagsOverlayBtn"[^>]+aria-controls="tagsOverlay"/);
     expect(html).toContain('float-btn--like'); // anonymous like fallback markup
     // Script ordering: /shared/overlay.js before /js/home-tags-overlay.js
     const overlayIdx = html.indexOf('/shared/overlay.js');
