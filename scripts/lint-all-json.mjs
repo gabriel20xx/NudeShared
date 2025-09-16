@@ -6,10 +6,23 @@
  */
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, join } from 'node:path';
+import { existsSync } from 'node:fs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const root = resolve(__dirname, '../../..');
+
+function discoverRoot(startDir) {
+  let dir = startDir;
+  for (let i = 0; i < 6; i++) {
+    if (existsSync(join(dir, 'NudeShared', 'package.json'))) return dir;
+    const parent = resolve(dir, '..');
+    if (parent === dir) break;
+    dir = parent;
+  }
+  return resolve(startDir, '../..');
+}
+
+const root = discoverRoot(__dirname);
 
 const packages = [
   { name: 'NudeShared', path: 'NudeShared' },
@@ -23,13 +36,22 @@ let hadFailure = false;
 
 for (const pkg of packages) {
   const pkgDir = resolve(root, pkg.path);
-  // Invoke eslint via npx to avoid hardcoding path; keeps Windows compatibility.
-  const cmd = process.platform === 'win32' ? 'npx eslint' : 'npx eslint';
-  const result = spawnSync(cmd, ['.', '--ext', '.js,.mjs', '--format', 'json'], {
+  const npxCmd = process.platform === 'win32' ? 'npx.cmd' : 'npx';
+  let result = spawnSync(npxCmd, ['eslint', '.', '--format', 'json', '--max-warnings=0'], {
     cwd: pkgDir,
     encoding: 'utf8',
     shell: true
   });
+  if (result.status === null || result.error) {
+    const localEslint = resolve(root, 'node_modules', '.bin', process.platform === 'win32' ? 'eslint.cmd' : 'eslint');
+    if (existsSync(localEslint)) {
+      result = spawnSync(localEslint, ['.', '--format', 'json', '--max-warnings=0'], {
+        cwd: pkgDir,
+        encoding: 'utf8',
+        shell: true
+      });
+    }
+  }
 
   if (result.error) {
     summary.packages.push({ name: pkg.name, error: result.error.message, ok: false });

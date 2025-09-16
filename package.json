@@ -15,7 +15,7 @@
     "test:skips": "node scripts/list-skipped-tests.mjs",
   "lint:all": "node scripts/lint-all.mjs",
   "lint:all:json": "node scripts/lint-all-json.mjs",
-  "test:session": "vitest run --include 'test/**/sessionCookieConsistency.test.mjs'"
+  "test:session": "vitest run sessionCookieConsistency.test.mjs"
   },
   "repository": {
     "type": "git",
