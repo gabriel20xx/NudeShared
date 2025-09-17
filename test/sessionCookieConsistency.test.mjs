@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import request from 'supertest';
+let request;
+try {
+  // Some environments (Windows + vitest ESM) fail static resolution; use dynamic import fallback.
+  ({ default: request } = await import('supertest'));
+} catch (err) {
+  // Provide clearer diagnostic to aid CI debugging.
+  throw new Error('supertest dependency missing or failed to load: ' + err.message);
+}
 
 // Lazy dynamic imports to avoid pulling entire apps before needed
 async function getAdminApp(){ return (await import('../../NudeAdmin/src/app.js')).createApp(); }

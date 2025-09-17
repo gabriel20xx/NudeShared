@@ -1,4 +1,6 @@
 import express from 'express';
+import path from 'path';
+import fs from 'fs';
 import { applyStandardAppHardening, attachStandardNotFoundAndErrorHandlers } from '../middleware/hardening.js';
 import { mountSharedStatic, defaultSharedCandidates } from '../http/sharedStatic.js';
 import { mountTheme } from '../theme/mountTheme.js';
@@ -29,6 +31,22 @@ export function applySharedBase(app, opts = {}) {
   const candidates = sharedDir ? [sharedDir, ...defaultSharedCandidates(projectDir)] : defaultSharedCandidates(projectDir);
   mountSharedStatic(app, { candidates, logger });
   mountTheme(app, { projectDir, sharedDir, logger });
+
+  // Ensure /shared/overlay.js is always available (tests & Flow home overlay rely on it)
+  if (sharedDir) {
+    try {
+      const overlayPath = path.resolve(sharedDir, 'client', 'overlay.js');
+      if (fs.existsSync(overlayPath)) {
+        app.get('/shared/overlay.js', (req, res, next) => {
+          fs.access(overlayPath, fs.constants.R_OK, (err) => {
+            if (err) return next();
+            res.type('application/javascript');
+            res.sendFile(overlayPath);
+          });
+        });
+      }
+    } catch { /* ignore overlay route issues */ }
+  }
 
   if (mountAuth) {
     app.use('/auth', buildAuthRouter(express.Router));

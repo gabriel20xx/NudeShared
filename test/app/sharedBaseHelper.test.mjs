@@ -1,7 +1,12 @@
 import { describe, it, expect } from 'vitest';
 import express from 'express';
 import path from 'path';
-import request from 'supertest';
+let request;
+try {
+  ({ default: request } = await import('supertest'));
+} catch (err) {
+  throw new Error('supertest dependency missing or failed to load: ' + err.message);
+}
 import { applySharedBase } from '../../server/app/applySharedBase.js';
 
 describe('applySharedBase helper', () => {
